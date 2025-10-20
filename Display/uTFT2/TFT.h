@@ -6,10 +6,6 @@
 
 #include "Driver/TFT_Driver.h"
 
-
-
-
-
 #define FontId0 (u8 *)(tft.getResAdressFontID(0))
 #define FontId1 (u8 *)(tft.getResAdressFontID(1))
 #define FontId2 (u8 *)(tft.getResAdressFontID(2))

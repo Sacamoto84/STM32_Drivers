@@ -3,7 +3,7 @@
 #if defined(TFT_DRIVER_ST7789)
 
 //#include "../TFT.h"
-#include "../TFT_Driver.h"
+#include "TFT_Driver.h"
 #include "../TFT_SPI.h"
 #include "ST7789.h"
 
@@ -174,18 +174,18 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
 
 				LCD->hspi->Instance->DR =  LCD->palete[(LCD->buffer8[i / 2]) & 0x0F]; // write data to be transmitted to the SPI data register
-				while( !(SPI1->SR & SPI_FLAG_TXE) );  // wait until transmit complete
-				while( !(SPI1->SR & SPI_FLAG_RXNE) ); // wait until receive complete
-				while( SPI1->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
+				while( !(SPI5->SR & SPI_FLAG_TXE) );  // wait until transmit complete
+				while( !(SPI5->SR & SPI_FLAG_RXNE) ); // wait until receive complete
+				while( SPI5->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
 				LCD->hspi->Instance->DR; // return received data from SPI data register
 			} else {
 				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
 				//LCD->hspi->Instance->DR = LCD->palete[(LCD->buffer8[i / 2]) >> 4]; //4 bit
 
 				LCD->hspi->Instance->DR =  LCD->palete[(LCD->buffer8[i / 2]) >> 4]; // write data to be transmitted to the SPI data register
-				while( !(SPI1->SR & SPI_FLAG_TXE) );  // wait until transmit complete
-				while( !(SPI1->SR & SPI_FLAG_RXNE) ); // wait until receive complete
-				while( SPI1->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
+				while( !(SPI5->SR & SPI_FLAG_TXE) );  // wait until transmit complete
+				while( !(SPI5->SR & SPI_FLAG_RXNE) ); // wait until receive complete
+				while( SPI5->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
 				LCD->hspi->Instance->DR; // return received data from SPI data register
 			}
 		}
@@ -818,7 +818,7 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 	SPI.Spi8to16();
 
 	DMA2_Stream3->CR   &= ~DMA_SxCR_EN; // DMA
-	DMA2_Stream3->NDTR  = 240*240;
+	DMA2_Stream3->NDTR  = 240*135;
 	DMA2_Stream3->PAR   = 0x4001300C;//SPI
 	DMA2_Stream3->M0AR  = (uint32_t)&LCD->buffer16[0];
 	DMA2_Stream3->CR   |=  DMA_SxCR_CIRC;      //Кольцевой режим

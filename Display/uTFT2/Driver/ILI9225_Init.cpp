@@ -1,7 +1,6 @@
 #include "TFT_config.h"
 
 
-
 #if defined(TFT_DRIVER_ILI9225)
 
 #include "ILI9225.h"

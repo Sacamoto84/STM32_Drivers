@@ -1,8 +1,8 @@
 #ifndef BITMAP_BITMAP_H_
 #define BITMAP_BITMAP_H_
 
-#include "../TFT.h"
-#include "../TFT_color.h"
+#include "TFT.h"
+#include "TFT_color.h"
 
   // Bitmap
   typedef struct {
