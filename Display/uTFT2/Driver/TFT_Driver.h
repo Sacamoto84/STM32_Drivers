@@ -6,9 +6,12 @@
 #include "TFT_define.h"
 
 #ifdef TFT_USE_SPI
+  #ifdef __cplusplus
   #include "TFT_SPI.h"
+  #endif
 #endif
 
+#ifdef __cplusplus
 class TFT_Driver {
 public:
 
@@ -182,6 +185,9 @@ public:
 #endif
 
 }
+
 ;
+
+#endif /* __cplusplus */
 
 #endif /* TFT_DRIVER_H_ */

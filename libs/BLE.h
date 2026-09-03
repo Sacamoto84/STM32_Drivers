@@ -8,11 +8,7 @@
 
 #include "main.h"
 
-#include "logUART.h"
-
 #include "usart.h"
-
-extern classLog Log;
 
 #define SIZE_BUF 2048
 

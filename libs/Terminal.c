@@ -1,3 +1,9 @@
+#include <stdio.h>
+#include <string.h>
+#include "main.h"
+
+extern int CDC_Transmit_FS(unsigned char* Buf, uint16_t Len);
+
 void Terminal_cls(void)
 {
 	char str_tx[21];

@@ -1,8 +1,5 @@
 #include "TFT.h"
 
-#include "logUART.h"
-extern classLog rtt;
-
 //32 бит BMP с альфа каналом
 //void uTFT_BMP_From_File_Alpha(TFT_LCD_t *LCD, int32_t x0, int32_t y0,
 //		char *Name, int offset);

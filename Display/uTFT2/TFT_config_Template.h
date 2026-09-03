@@ -14,7 +14,7 @@
 //Выбор используемого драйвера
 //#define TFT_Driver_SSD1306
 //#define TFT_Driver_ILI9225
-#define TFT_Driver_ST7789
+#define TFT_DRIVER_ST7789
 //#define TFT_Driver_ST7735
 //#define TFT_Driver_ST7735S
 

@@ -19,7 +19,6 @@ uint32_t micros1(void)
 extern "C" void TIM4_IRQHandler(void)
 {
   HMictotick++;
-  HAL_TIM_IRQHandler(&htim4);
 }
 
 

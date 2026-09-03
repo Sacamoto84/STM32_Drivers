@@ -16,7 +16,7 @@ extern void BLE_Code_98(int PosS, int len);
 //https://chipenable.ru/index.php/programming-avr/44-uchebnyy-kurs-organizatsiya-obmena-po-usart-u-s-ispolzovaniem-koltsevogo-bufera.html
 
 void BLE::init(UART_HandleTypeDef *rx) {
-	Log.i((char*)"Инициализация BLE");
+	//Log.i((char*)"Инициализация BLE");
 
 	_huart = rx;
 
@@ -145,7 +145,7 @@ void BLE::BLE_UART_Decode(void) {
 	big_buffer[Max_Big_Buf] = 0;
 
 	if (PosE < 64) {
-		Log.i("%s", big_buffer);
+		//Log.i("%s", big_buffer);
 	}
 
 	//Ищем индекс начала пакета
@@ -158,7 +158,7 @@ void BLE::BLE_UART_Decode(void) {
 
 	//Если нет начала пакета
 	if (PosS == -1) {
-		Log.e("L0 > Нет начала пакета > PosS == -1");
+		//Log.e("L0 > Нет начала пакета > PosS == -1");
 		return;
 	}
 	//Есть начало и конец
@@ -171,13 +171,13 @@ void BLE::BLE_UART_Decode(void) {
 
 	//Если нет начала CRC
 	if (PosCRC == -1) {
-		Log.e("L0 > Нет начала CRC > PosCRC == -1\n");
+		//Log.e("L0 > Нет начала CRC > PosCRC == -1\n");
 		return;
 	}
 
 	//Нашли начало CRC
 	if ((PosE - PosCRC) > 4) {
-		Log.e((char *)"L0 > Error > (PosE - PosCRC) > 4\n");
+		//Log.e((char *)"L0 > Error > (PosE - PosCRC) > 4\n");
 		return;
 	}
 
@@ -205,7 +205,7 @@ void BLE::BLE_UART_Decode(void) {
 	temp = CRC8(&big_buffer[PosS + 1], PosCRC - PosS - 1);
 
 	if (local_crc != temp) {
-		Log.e("L0 > Error calculate CRC In:%d != Calc:%d\n", local_crc, temp);
+		//Log.e("L0 > Error calculate CRC In:%d != Calc:%d\n", local_crc, temp);
 		return;
 	}
 
@@ -274,7 +274,7 @@ void BLE::Send(char *outstr) {
 	char crc;
 	crc = CRC8(&outstr[0], strlen(outstr));
 	sprintf(str, "!%s;%d$", outstr, crc);
-	Log.s(str);
+	//Log.s(str);
 	HAL_UART_Transmit(_huart, (uint8_t*) &str[0], strlen(str), 1000);
 }
 

@@ -1,6 +1,6 @@
 #include "TFT_config.h"
 
-#ifdef define(TFT_UNIT_VIDEO)
+#if defined(TFT_UNIT_VIDEO)
 
 #include "video.h"
 

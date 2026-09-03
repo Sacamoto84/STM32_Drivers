@@ -1,4 +1,42 @@
 #include "utils.h"
+#include <string.h>
+
+#define DEC 10
+
+static char* ltoa(long value, char *buffer, int base) {
+    char *ptr = buffer;
+    char *ptr1 = buffer;
+    char tmp;
+    int negative = 0;
+    unsigned long uvalue;
+
+    if (value < 0 && base == 10) {
+        negative = 1;
+        uvalue = -value;
+    } else {
+        uvalue = value;
+    }
+
+    do {
+        unsigned long remainder = uvalue % base;
+        *ptr++ = (remainder < 10) ? '0' + remainder : 'a' + remainder - 10;
+    } while (uvalue /= base);
+
+    if (negative) *ptr++ = '-';
+
+    *ptr = 0;
+
+    // Reverse string
+    ptr1 = buffer;
+    ptr--;
+    while (ptr1 < ptr) {
+        tmp = *ptr1;
+        *ptr1++ = *ptr;
+        *ptr-- = tmp;
+    }
+
+    return buffer;
+}
 
 char* mUtoa(uint32_t value, char *buffer, bool clear) {
     buffer += 11;

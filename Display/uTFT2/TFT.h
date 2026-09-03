@@ -6,6 +6,8 @@
 
 #include "Driver/TFT_Driver.h"
 
+#ifdef __cplusplus
+
 #define FontId0 (u8 *)(tft.getResAdressFontID(0))
 #define FontId1 (u8 *)(tft.getResAdressFontID(1))
 #define FontId2 (u8 *)(tft.getResAdressFontID(2))
@@ -178,5 +180,7 @@ private:
 private:
 
 };
+
+#endif /* __cplusplus */
 
 #endif /* TFT_H_ */

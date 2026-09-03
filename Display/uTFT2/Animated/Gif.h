@@ -50,7 +50,7 @@
 
 #include "fatfs.h"
 
-#include "logUART.h"
+#include <logUART.h>
 extern classLog rtt;
 
 #include "HiSpeedDWT.h"
