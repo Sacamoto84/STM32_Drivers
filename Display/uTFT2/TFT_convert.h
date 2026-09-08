@@ -1,13 +1,6 @@
 #ifndef TFT_CONVERT_H_
 #define TFT_CONVERT_H_
 
-#include <string.h>
-
-//extern void ConvertStringDosTo1251  ( char *str ); // Конвертирование строки из DOS(866) в Win1251
-//extern void ConvertString1251ToDos  ( char *str ); // Конвертирование строки из Win1251 в DOS(866)
-//extern void ConvertString1251ToUTF8 ( char *in_str, char *out_str );// Конвертирование строки из Win1251 в UTF8
-//extern int  ConvertStringUTF8to1251 ( const char* utf8, char* windows1251, size_t n);
-
 #include <stdint.h>
 #include <string.h>
 
@@ -27,8 +20,8 @@ static inline void ConvertStringDosTo1251 ( char *str )
 	int i;
 
 	for ( i = 0; i < (int)strlen ( str ); i ++ )
-		if ( str [ i ] > 127 )
-			str [ i ] = table [ (int) (str[i] - 128) ];
+		if ( (uint8_t)str [ i ] > 127 )
+			str [ i ] = table [ (uint8_t)str [ i ] - 128 ];
 } // ConvertStringDosTo1251
 
 // Конвертирование строки из Win1251 в DOS(866)
@@ -47,22 +40,13 @@ static inline void ConvertString1251ToDos ( char *str )
 
 	int i;
 	for ( i = 0; i < (int)strlen ( str ); i++ ){
-		if ( str [ i ] > 127 )
-			str [ i ] = table [ (int)(str[i] - 128) ];}
+		if ( (uint8_t)str [ i ] > 127 )
+			str [ i ] = table [ (uint8_t)str [ i ] - 128 ];}
 
-} // ConvertStringDosTo1251
+} // ConvertString1251ToDos
 
-static inline uint16_t C1251toUTF8(char c){
-	if (c>=240)
-	{
-		return 0xD100+0x0080+(c-240);
-	}
-	if (c>=192)
-	{
-		return 0xD000+0x0090+(c-192);
-	}
-	return c;
-}
+//Определение ниже (после таблицы g_letters)
+static uint16_t C1251toUTF8(char c);
 
 // Конвертирование строки из Win1251 в UTF8
 static inline void ConvertString1251ToUTF8 ( char *in_str, char *out_str )
@@ -72,7 +56,7 @@ static inline void ConvertString1251ToUTF8 ( char *in_str, char *out_str )
 
 	for ( uint16_t i = 0; i < strlen ( in_str ); i++ ){
 
-		if (in_str [ i ] <= 127)
+		if ((uint8_t)in_str [ i ] <= 127)
 		{
 			*pUTF8++ = in_str[i];
 		}
@@ -154,6 +138,44 @@ static Letter g_letters[] = {
         {0xBE, 0x0455}, // CYRILLIC SMALL LETTER DZE
         {0xBF, 0x0457} // CYRILLIC SMALL LETTER YI
 };
+
+// Конвертирование символа Win1251 в упакованную пару байтов UTF-8.
+// Возвращает (first_byte << 8) | second_byte.
+static uint16_t C1251toUTF8(char c){
+	uint8_t u = (uint8_t)c;
+
+	if (u == 0xA8) return 0xD081; //Ё
+	if (u == 0xB8) return 0xD191; //ё
+
+	if (u >= 240) //р..я (0xF0-0xFF)
+	{
+		return 0xD100 + 0x0080 + (u - 240);
+	}
+	if (u >= 192) //А..Я, а..п (0xC0-0xEF)
+	{
+		return 0xD000 + 0x0090 + (u - 192);
+	}
+
+	//0x80-0xBF: спецсимволы cp1251 через таблицу g_letters
+	{
+		uint32_t count = sizeof(g_letters) / sizeof(g_letters[0]);
+		for (uint32_t k = 0; k < count; k++) {
+			if ((uint8_t)g_letters[k].win1251 == u) {
+				uint32_t uni = (uint32_t)g_letters[k].unicode;
+				if (uni < 0x800) {
+					//Кодируется двумя байтами UTF-8
+					return (uint16_t)(((0xC0 | (uni >> 6)) << 8) | (0x80 | (uni & 0x3F)));
+				}
+				//Требуется 3 байта UTF-8 - не влезает в упаковку,
+				//оставляем символ как есть (как раньше)
+				break;
+			}
+		}
+	}
+
+	return u;
+}
+
 // Конвертирование строки из UTF8 в Win1251
 static inline int ConvertStringUTF8to1251 (const char* utf8, char* windows1251, size_t n)
 {

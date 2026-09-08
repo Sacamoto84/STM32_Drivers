@@ -38,6 +38,12 @@ extern FontDef_t Font_16x26;
 static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t NoBack ) {
 	uint32_t i, b, j;
 
+	//Символы до пробела не входят в таблицу данных шрифта (индекс < 0)
+	if ((uint8_t)ch < 32 || (uint8_t)ch > 127) {
+		tft->uTFT.CurrentX += Font->FontWidth - 1;
+		return ch;
+	}
+
 	if (NoBack)
 	for (i = 0; i < Font->FontHeight; i++) {
 		b = Font->data[(ch - 32) * Font->FontHeight + i];

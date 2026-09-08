@@ -4,8 +4,8 @@ void BitmapFromFlash1b(TFT * tft, int16_t X, int16_t Y, Bitmap *bmp)
 {
 	if (bmp->bit == 1) {
 
-			uint8_t pX;
-			uint8_t pY;
+			int32_t pX;
+			int32_t pY;
 			uint8_t tmpCh;
 			uint8_t bL;
 			const uint8_t *p;
@@ -39,4 +39,3 @@ void BitmapFromFlash1b(TFT * tft, int16_t X, int16_t Y, Bitmap *bmp)
 		}
 
 }
-

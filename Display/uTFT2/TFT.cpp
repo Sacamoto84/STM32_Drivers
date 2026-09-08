@@ -38,10 +38,10 @@ void TFT::SetPixel(int32_t x, int32_t y, uint16_t color) {
 	{
 		if (x % 2 == 0) {
 			LCD->buffer8[x / 2 + y * ((LCD->TFT_WIDTH) / 2)] = (LCD->buffer8[x
-					/ 2 + y * ((LCD->TFT_WIDTH) / 2)] & (0x0F)) | (color << 4);
+					/ 2 + y * ((LCD->TFT_WIDTH) / 2)] & (0x0F)) | ((color & 0x0F) << 4);
 		} else {
 			LCD->buffer8[x / 2 + y * ((LCD->TFT_WIDTH) / 2)] = (LCD->buffer8[x
-					/ 2 + y * ((LCD->TFT_WIDTH) / 2)] & (0xF0)) | color;
+					/ 2 + y * ((LCD->TFT_WIDTH) / 2)] & (0xF0)) | (color & 0x0F);
 		}
 
 		return;
@@ -90,10 +90,10 @@ void TFT::SetPixel4(int32_t x, int32_t y, uint16_t color) {
 
 	if (x % 2 == 0) {
 		LCD->buffer8[x / 2 + y * ((LCD->TFT_WIDTH) / 2)] = (LCD->buffer8[x / 2
-				+ y * ((LCD->TFT_WIDTH) / 2)] & (0x0F)) | (color << 4);
+				+ y * ((LCD->TFT_WIDTH) / 2)] & (0x0F)) | ((color & 0x0F) << 4);
 	} else {
 		LCD->buffer8[x / 2 + y * ((LCD->TFT_WIDTH) / 2)] = (LCD->buffer8[x / 2
-				+ y * ((LCD->TFT_WIDTH) / 2)] & (0xF0)) | color;
+				+ y * ((LCD->TFT_WIDTH) / 2)] & (0xF0)) | (color & 0x0F);
 	}
 }
 
@@ -127,6 +127,26 @@ uint16_t TFT::GetPixel(int32_t x, int32_t y) {
 	}
 #endif
 
+#if defined(TFT_USE_4BIT)
+#if !defined (TFT_USE_ONLY_ONE_BIT_COLOR)
+  if (LCD->Bit == 4)
+#endif
+	{
+		//Старший ниббель - четный x, младший - нечетный (см. SetPixel4)
+		uint8_t b = LCD->buffer8[x / 2 + y * (LCD->TFT_WIDTH / 2)];
+		return (x % 2) ? (b & 0x0F) : (b >> 4);
+	}
+#endif
+
+#if defined(TFT_USE_8BIT)
+#if !defined (TFT_USE_ONLY_ONE_BIT_COLOR)
+  if (LCD->Bit == 8)
+#endif
+	{
+		return LCD->buffer8[x + y * LCD->TFT_WIDTH];
+	}
+#endif
+
 #if defined(TFT_USE_16BIT)
 #if !defined (TFT_USE_ONLY_ONE_BIT_COLOR)
   if (LCD->Bit == 16)
@@ -136,7 +156,7 @@ uint16_t TFT::GetPixel(int32_t x, int32_t y) {
   }
 #endif
 
-	return 0; //Не реализовано
+	return 0; //Битность не поддержана
 }
 
 uint16_t TFT::GetPixel1(int32_t x, int32_t y) {
@@ -160,125 +180,87 @@ uint16_t TFT::GetPixel16(int32_t x, int32_t y) {
 }
 
 //Установка цвета в палитре
-void TFT::SetColorToPallete(uint8_t index, uint16_t color) {
-	//if (index>255) return;
-	//LCD->LCD_Buffer_Palette[index] = color;
+//Быстрая заливка буфера байтовым шаблоном.
+//Если буфер выровнен на 4 байта - заливает словами, хвост - побайтно.
+static void TFT_FillPattern8(uint8_t *buf, uint32_t bytes, uint8_t pat) {
+	if (((uintptr_t)buf & 3u) == 0) {
+		uint32_t pat32 = (uint32_t)pat | ((uint32_t)pat << 8)
+				| ((uint32_t)pat << 16) | ((uint32_t)pat << 24);
+		uint32_t *p32 = (uint32_t *)buf;
+		while (bytes >= 4) {
+			*p32++ = pat32;
+			bytes -= 4;
+		}
+		buf = (uint8_t *)p32;
+	}
+	while (bytes--)
+		*buf++ = pat;
 }
 
 void TFT::Fill(uint16_t color) {
 
-	if (LCD->Bit == 1) {
-		uint8_t c;
-		if (color)
-			c = 0xFF;
-		else
-			c = 0;
+	uint32_t pixels = (uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH;
 
-		for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 8); i++)
-			LCD->buffer8[i] = c;
+	if (LCD->Bit == 1) {
+		TFT_FillPattern8(LCD->buffer8, (pixels + 7) / 8, color ? 0xFF : 0x00);
 		return;
 	}
 
 	if (LCD->Bit == 4) {
-		//for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2) - 1; i++)
-		//	LCD->buffer8[i] = color | (color << 4);
-		//return;
-		//memset (LCD->buffer8, color | (color << 4), LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2);
-
-		uint32_t *buf = (uint32_t*) LCD->buffer8;
-		uint32_t count = LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 8;
-		uint32_t c = color | (color << 4) | ((color | (color << 4)) << 8)
-				| ((color | (color << 4)) << 16)
-				| ((color | (color << 4)) << 24);
-		while (count--)
-			*buf++ = c;
-
+		TFT_FillPattern8(LCD->buffer8, (pixels + 1) / 2,
+				(uint8_t)(color | (color << 4)));
+		return;
 	}
 
 	if (LCD->Bit == 8) {
-		//for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2) - 1; i++)
-		//	LCD->buffer8[i] = color | (color << 4);
-		//return;
-		//memset (LCD->buffer8, color | (color << 4), LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2);
-
-		uint32_t *buf = (uint32_t*) LCD->buffer8;
-		uint32_t count = LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 4;
-		uint32_t c = color | (color << 8) | (color << 16) | (color << 24);
-		while (count--)
-			*buf++ = c;
-
+		TFT_FillPattern8(LCD->buffer8, pixels, (uint8_t)color);
+		return;
 	}
 
+	if (LCD->Bit == 16) {
+		Fill16(color);
+		return;
+	}
 }
 
 void TFT::Fill1(uint16_t color) {
-
-	uint8_t c;
-	if (color)
-		c = 0xFF;
-	else
-		c = 0;
-
-	for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 8); i++)
-		LCD->buffer8[i] = c;
-	return;
+	uint32_t pixels = (uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH;
+	TFT_FillPattern8(LCD->buffer8, (pixels + 7) / 8, color ? 0xFF : 0x00);
 }
 
 void TFT::Fill4(uint16_t color) {
-	//for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2) - 1; i++)
-	//	LCD->buffer8[i] = color | (color << 4);
-	//return;
-	//memset (LCD->buffer8, color | (color << 4), LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2);
-
-	uint32_t *buf = (uint32_t*) LCD->buffer8;
-	uint32_t count = LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 8;
-	uint32_t c = color | (color << 4) | ((color | (color << 4)) << 8)
-			| ((color | (color << 4)) << 16) | ((color | (color << 4)) << 24);
-	while (count--)
-		*buf++ = c;
+	uint32_t pixels = (uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH;
+	TFT_FillPattern8(LCD->buffer8, (pixels + 1) / 2,
+			(uint8_t)(color | (color << 4)));
 }
 
 void TFT::Fill8(uint16_t color) {
-	//for (int32_t i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2) - 1; i++)
-	//	LCD->buffer8[i] = color | (color << 4);
-	//return;
-	//memset (LCD->buffer8, color | (color << 4), LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2);
-
-	uint32_t *buf = (uint32_t*) LCD->buffer8;
-	uint32_t count = LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 4;
-	uint32_t c = color | (color << 8) | (color << 16) | (color << 24);
-	while (count--)
-		*buf++ = c;
+	uint32_t pixels = (uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH;
+	TFT_FillPattern8(LCD->buffer8, pixels, (uint8_t)color);
 }
 
 void TFT::Fill16(uint16_t color) {
-	//uint32_t t = (uint32_t)color;
-	uint32_t Color = color * 65536 + color;
-	uint32_t *p;
-	p = (uint32_t*) &LCD->buffer16[0];
+	uint32_t pixels = (uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH;
+	uint32_t Color = ((uint32_t)color << 16) | color;
 
-	uint32_t max = LCD->TFT_HEIGHT * LCD->TFT_WIDTH / 2 / 4 / 2 / 2;
-
-	while (max--) {
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
-		*p++ = Color;
+	if ((pixels & 1u) == 0 && ((uintptr_t)&LCD->buffer16[0] & 3u) == 0) {
+		//Выровненный быстрый путь словами
+		uint32_t count = pixels / 2;
+		uint32_t *p = (uint32_t *)&LCD->buffer16[0];
+		while (count >= 4) {
+			p[0] = Color;
+			p[1] = Color;
+			p[2] = Color;
+			p[3] = Color;
+			p += 4;
+			count -= 4;
+		}
+		while (count--)
+			*p++ = Color;
+	} else {
+		for (uint32_t i = 0; i < pixels; i++)
+			LCD->buffer16[i] = color;
 	}
-	return;
 }
 
 uint16_t TFT::alphaBlend(uint8_t alpha, uint16_t fgc, uint16_t bgc) {

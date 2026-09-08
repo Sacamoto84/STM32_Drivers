@@ -4,8 +4,7 @@
 #include "HiSpeedDWT.h"
 extern HiSpeedDWT TimerT5;
 
-#include "logUART.h"
-extern classLog rtt;
+#include "timber.h"
 
 uint32_t OUTPUT[OUTPUTSAMPLES] RAM_16;
 
@@ -19,12 +18,12 @@ void GENERATOR::Create_Carrier(_structure_ch *_CH) {
 	sprintf(str, "/Carrier/%s", _CH->Carrier_mod);
 
 	if (f_open(&SDFile, str, FA_OPEN_EXISTING | FA_READ) == FR_OK) {
-		rtt.print(">Open OK %s\n", str);
+		timber.print(">Open OK %s\n", str);
 		UINT testByte;
 		f_read(&SDFile, &buffer_temp, 2048, &testByte);
 		f_close(&SDFile);
 	} else
-	    rtt.print(">Open Error %s\n", str);
+	    timber.print(">Open Error %s\n", str);
 
 	uint16_t *p;
     p = (uint16_t*)&buffer_temp[0];
@@ -52,7 +51,7 @@ void GENERATOR::Create_AM_Modulation(_structure_ch *_CH) {
 		f_read(&SDFile, &buffer_temp, 2048, &testByte);
 		f_close(&SDFile);
 	} else
-	    rtt.print("└> Ошибка %s\n", str);
+	    timber.print("└> Ошибка %s\n", str);
 
 	uint16_t *p;
     p = (uint16_t*)&buffer_temp[0];
@@ -65,7 +64,7 @@ void GENERATOR::Create_AM_Modulation(_structure_ch *_CH) {
 //Прочесть файл FM модуляции и записать в буффер "/Mod/_CH->FM_mod"
 void GENERATOR::Create_FM_Modulation(_structure_ch *_CH) {
 
-    rtt.print("\033[01;38;05;232;48;05;201mGEN\x1B[0m>Create_FM_Modulation CH%d\n", _CH->CH + 1);
+    timber.print("\033[01;38;05;232;48;05;201mGEN\x1B[0m>Create_FM_Modulation CH%d\n", _CH->CH + 1);
 
 	float x, y;
 	//UINT *p;
@@ -79,7 +78,7 @@ void GENERATOR::Create_FM_Modulation(_structure_ch *_CH) {
 	uint16_t i;
 
 	if (f_open(&SDFile, str, FA_OPEN_EXISTING | FA_READ) == FR_OK) {
-		rtt.print(">Open OK %s\n", str);
+		timber.print(">Open OK %s\n", str);
 		UINT testByte;
 
 		if (_CH->CH == 0)
@@ -89,7 +88,7 @@ void GENERATOR::Create_FM_Modulation(_structure_ch *_CH) {
 
 		f_close(&SDFile);
 	} else
-        rtt.print(">Open Error %s\n", str);
+        timber.print(">Open Error %s\n", str);
 	///////////////////
 	uint16_t *p;
 	if (_CH->CH == 0)
@@ -135,7 +134,7 @@ void GENERATOR::Create_FM_Modulation(_structure_ch *_CH) {
 //Прочесть файл FM модуляции и записать в буффер "/Mod/_CH->FM_mod"
 void GENERATOR::Refresh_FM_Modulation(_structure_ch *_CH) {
 
-    rtt.print("\033[01;38;05;232;48;05;68mGEN\x1B[0m>Refresh_FM_Modulation CH%d\n", _CH->CH + 1);
+    timber.print("\033[01;38;05;232;48;05;68mGEN\x1B[0m>Refresh_FM_Modulation CH%d\n", _CH->CH + 1);
 
 	float x, y;
 
@@ -296,7 +295,7 @@ void GENERATOR::read_save_ini_to_structure_ch(void)
 {
 	/*
 
-	 rtt.print("\x1B[38;05;10m>read_save_ini_to_structure_ch()\n");
+	 timber.print("\x1B[38;05;10m>read_save_ini_to_structure_ch()\n");
 
 	//char str[16];
 
@@ -308,103 +307,103 @@ void GENERATOR::read_save_ini_to_structure_ch(void)
 	IniFile ini(filename);
 
 	if (!ini.open()) {
-		 rtt.print("Ini файл /Config/save.ini does не найден\r\n");
+		 timber.print("Ini файл /Config/save.ini does не найден\r\n");
 	    // Cannot do anything else
 	    while (1)
 	      ;
 	  }
-	 rtt.print("Ini /Config/save.ini файл найден\n");
+	 timber.print("Ini /Config/save.ini файл найден\n");
 
     if (ini.getValue("CH1", "CR En", buffer, bufferLen, CH1.CH_EN))
-    	 rtt.print("%sCH1.CR EN   =  %s\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'CR En'\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.CR EN   =  %s\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'CR En'\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "CR Fr", buffer, bufferLen, CH1.Carrier_fr))
-    	 rtt.print("%sCH1.CR Fr   =  %s\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else { rtt.print("%sError [CH1] key 'CR Fr'\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.CR Fr   =  %s\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else { timber.print("%sError [CH1] key 'CR Fr'\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "CR Mod", buffer, bufferLen, &CH1.Carrier_mod[0], 20))
-    	 rtt.print("%sCH1.CR Mod  =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'CR Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.CR Mod  =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'CR Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "AM En", buffer, bufferLen, CH1.AM_EN))
-    	 rtt.print("%sCH1.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'AM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'AM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "AM Fr", buffer, bufferLen, CH1.AM_fr))
-    	 rtt.print("%sCH1.AM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'AM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.AM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'AM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "AM Mod", buffer, bufferLen, &CH1.AM_mod[0],20))
-    	 rtt.print("%sCH1.AM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'AM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.AM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'AM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "FM En", buffer, bufferLen, CH1.FM_EN))
-    	 rtt.print("%sCH1.FM En   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'FM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.FM En   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'FM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "FM Base", buffer, bufferLen, CH1.FM_Base))
-    	 rtt.print("%sCH1.FM Base =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'FM Base'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.FM Base =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'FM Base'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "FM Div", buffer, bufferLen, CH1.FM_Dev))
-    	 rtt.print("%sCH1.FM Div  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'FM Div'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.FM Div  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'FM Div'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "FM Fr", buffer, bufferLen, CH1.FM_mod_fr))
-    	 rtt.print("%sCH1.FM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'FM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH1.FM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'FM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH1", "FM Mod", buffer, bufferLen, &CH1.FM_mod[0], 20))
-        rtt.print("%sCH1.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH1] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+        timber.print("%sCH1.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH1] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
 ////////////////
-    rtt.print("%s-----------------------------'\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN);
+    timber.print("%s-----------------------------'\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN);
 
     if (ini.getValue("CH2", "CR En", buffer, bufferLen, CH2.CH_EN))
-    	 rtt.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'CR En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'CR En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "CR Fr", buffer, bufferLen, CH2.Carrier_fr))
-    	 rtt.print("%sCH2.CR Fr   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'CR Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.CR Fr   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'CR Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "CR Mod", buffer, bufferLen, &CH2.Carrier_mod[0], 20))
-    	 rtt.print("%sCH2.CR Mod  =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'CR Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.CR Mod  =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'CR Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "AM En", buffer, bufferLen, CH2.AM_EN))
-    	 rtt.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'AM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'AM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "AM Fr", buffer, bufferLen, CH2.AM_fr))
-    	 rtt.print("%sCH2.AM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'AM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.AM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'AM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "AM Mod", buffer, bufferLen, &CH2.AM_mod[0],20))
-    	 rtt.print("%sCH2.AM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else { rtt.print("%sError [CH2] key 'AM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.AM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else { timber.print("%sError [CH2] key 'AM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "FM En", buffer, bufferLen, CH2.FM_EN))
-    	 rtt.print("%sCH2.FM En   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'FM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.FM En   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'FM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "FM Base", buffer, bufferLen, CH2.FM_Base))
-    	 rtt.print("%sCH2.FM Base =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'FM Base'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.FM Base =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'FM Base'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "FM Div", buffer, bufferLen, CH2.FM_Dev))
-    	 rtt.print("%sCH2.FM Div  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'FM Div'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.FM Div  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'FM Div'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "FM Fr", buffer, bufferLen, CH2.FM_mod_fr))
-    	 rtt.print("%sCH2.FM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  rtt.print("%sError [CH2] key 'FM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.FM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
+    else {  timber.print("%sError [CH2] key 'FM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     if (ini.getValue("CH2", "FM Mod", buffer, bufferLen, &CH2.FM_mod[0], 20))
-    	 rtt.print("%sCH2.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer );
-    else {  rtt.print("%sError [CH2] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
+    	 timber.print("%sCH2.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer );
+    else {  timber.print("%sError [CH2] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     ini.close();
 

@@ -21,10 +21,10 @@ typedef struct {
   uint32_t *notUse;
 #endif
 
-#ifdef TFT_USE_I2С
+#ifdef TFT_USE_I2C
   I2C_HandleTypeDef *hi2c;
 #else
-  uint32_t * notUse;
+  uint32_t * notUse2;
 #endif
 
 	uint8_t I2C_Adress;
@@ -101,6 +101,7 @@ TFT_LCD_t LCD_0 = { 135,                  // Ширина экрана
     16,                   // bit
     &hspi5,               // Spi
     NULL,	              // I2C
+    0,                    // I2C адрес (не используется)
     &LCD_Buffer16_0[6],   // 16 бит буффер
     NULL,                 // !16 бит буффер
     NULL,                 // Палитра

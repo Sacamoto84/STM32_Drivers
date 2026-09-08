@@ -27,7 +27,6 @@
 
   //32 бит BMP с альфа каналом Сохранять как инвертированая альфа и свап  , customAlpha = 1.0 полная альфа
   extern void BitmapFromFlashAlpha(TFT * tft, int32_t x0, int32_t y0, Bitmap *bmp, float customAlpha);
-  extern void BitmapFromFlashBackground16bit(TFT * tft, Bitmap *bmp);
   extern void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, uint16_t TrColor);
 
 #if (FAT_FS)
@@ -37,7 +36,7 @@
   #define DWORD uint32_t
   #define LONG  uint64_t
 
- //структура BITMAPINFOHEADER
+  //структура BITMAPINFOHEADER
  typedef struct tagBITMAPINFOHEADER
  {
    uint16_t *   bfType;      //Сигнатура "BM"
@@ -51,7 +50,26 @@
    uint32_t *  biClrUsed;    //Число используемых цветов (0 - максимально возможное для данной глубины цвета)
  } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
 
-  //BITMAPINFOHEADER bmp_header;
+  //Разбор 54-байтового заголовка BMP с проверками.
+  //Возвращает 1 при успехе. clrUsed гарантированно <= 256.
+  static inline int BMP_ParseHeader(const uint8_t *buf, UINT rd,
+      uint32_t *offBits, uint32_t *width, uint32_t *height,
+      uint16_t *bitCount, uint32_t *clrUsed)
+  {
+    if (rd != 54) return 0;
+    if (buf[0] != 0x42 || buf[1] != 0x4D) return 0; //Сигнатура "BM"
+
+    *offBits  = (uint32_t)buf[10] | ((uint32_t)buf[11] << 8) | ((uint32_t)buf[12] << 16) | ((uint32_t)buf[13] << 24);
+    *width    = (uint32_t)buf[18] | ((uint32_t)buf[19] << 8) | ((uint32_t)buf[20] << 16) | ((uint32_t)buf[21] << 24);
+    *height   = (uint32_t)buf[22] | ((uint32_t)buf[23] << 8) | ((uint32_t)buf[24] << 16) | ((uint32_t)buf[25] << 24);
+    *bitCount = (uint16_t)(buf[28] | (buf[29] << 8));
+    *clrUsed  = (uint32_t)buf[46] | ((uint32_t)buf[47] << 8) | ((uint32_t)buf[48] << 16) | ((uint32_t)buf[49] << 24);
+
+    if (*width == 0 || *height == 0) return 0;
+    if (*offBits < 54) return 0;
+    if (*clrUsed > 256) return 0;
+    return 1;
+  }
 
   extern void BMPFromFile(TFT * tft, int32_t x0, int32_t y0, char * Name);
   extern void BMPFromFileTransparent(TFT * tft, int32_t x0, int32_t y0, char * Name, uint16_t tr_color);

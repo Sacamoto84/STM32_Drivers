@@ -99,6 +99,14 @@ public:
 
 	void drawChar(unsigned char c, uint8_t size = 1) {
 
+		//Защита: шрифт не установлен или символ вне диапазона глифов
+		//(иначе - чтение чужой памяти через glyph[])
+		if (gfxFont == NULL || c < gfxFont->first || c > gfxFont->last) {
+			//Продвигаем курсор на ширину пробела
+			_tft->uTFT.CurrentX += gfxFont ? (gfxFont->yAdvance / 2) : 6;
+			return;
+		}
+
 		int16_t x = _tft->uTFT.CurrentX;
 		int16_t y = _tft->uTFT.CurrentY;
 		uint16_t color = _tft->uTFT.Color;

@@ -27,19 +27,27 @@ tft.copyTr(&Cursor, TS[1], TS[2], BLACK);
 ```
 
 ## Вращение
+Класс transformation (Transformation/transformation.h).
+Точки вращения - публичные поля `_xPivot` / `_yPivot` класса TFT.
 
 ```
-Sprite.setPivot(-20, 15); //Точка вращения
-tft.setPivot(135 / 2, 240 / 2);
+transformation trans(&tft);
 
-tft.pushRotated(&Sprite, angle, BLACK);
-tft.pushRotated(&Sprite, angle, WHITE);
+Sprite._xPivot = -20;   //Точка вращения спрайта
+Sprite._yPivot = 15;
+tft._xPivot = 135 / 2;  //Куда на экране попадает точка вращения
+tft._yPivot = 240 / 2;
+
+trans.pushRotated(&tft, &Sprite, angle, BLACK);
 
 tft.copy(&Sprite, 20, 20);
 ```
 
 ## Скроллинг
 ```
+transformation transSpr(&Sprite);
+
 Sprite.SetPixel(25, graphVal, BLUE);
-Sprite.scroll(-1, 0);
+transSpr.setScrollRect(0, 0, 32, 32, BLACK); //Зона скролла и цвет заполнения
+transSpr.scroll(-1, 0);
 ```

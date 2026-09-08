@@ -6,15 +6,15 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 		const uint8_t *p;
 		p = (uint8_t *)bmp.data;
 
-		uint8_t pX;
-		uint8_t pY;
+		int32_t pX;
+		int32_t pY;
 		uint8_t tmpCh;
 		uint8_t bL;
 
 		pY = Y;
-		while (pY < Y + bmp.H) {
+		while (pY < (int32_t)Y + bmp.H) {
 			pX = X;
-			while (pX < X + bmp.W) {
+			while (pX < (int32_t)X + bmp.W) {
 				bL = 0;
 				tmpCh = *p++;
 				if (tmpCh) {
@@ -39,20 +39,34 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 	}
 
 	if (bmp.bit == 16) {
-		const uint16_t *p16;
-		p16 = bmp.steam16;
+		//X, Y - uint16_t, отрицательными быть не могут
+		int32_t x0 = X;
+		int32_t y0 = Y;
+		int32_t x1 = (int32_t)X + bmp.W; //эксклюзивная граница
+		int32_t y1 = (int32_t)Y + bmp.H;
+		int32_t W = tft->LCD->TFT_WIDTH;
+		int32_t H = tft->LCD->TFT_HEIGHT;
 
-		uint16_t temp;
-		for (uint16_t pY = Y; pY < bmp.H; pY++) {
-			for (uint16_t pX = X; pX < bmp.W; pX++) {
-				temp = *p16++;
+		if (x1 > W) x1 = W;
+		if (y1 > H) y1 = H;
+		if (x0 >= x1 || y0 >= y1) return;
+
+		//Пропущенные столбцы/строки источника
+		uint32_t skip_cols = (uint32_t)(x0 - X);
+		uint32_t skip_rows = (uint32_t)(y0 - Y);
+
+		const uint16_t *p16 = bmp.steam16 + skip_rows * bmp.W + skip_cols;
+
+		for (int32_t pY = y0; pY < y1; pY++) {
+			const uint16_t *src = p16;
+			p16 += bmp.W;
+			uint16_t *dst = &tft->LCD->buffer16[pY * W];
+			for (int32_t pX = x0; pX < x1; pX++) {
+				uint16_t temp = *src++;
 				if (TrColor != temp)
-				{
-						tft->LCD->buffer16[pX + pY * tft->LCD->TFT_WIDTH] = temp;
-				}
-
+					*dst = temp;
+				dst++;
 			}
-
 		}
 	}
 }

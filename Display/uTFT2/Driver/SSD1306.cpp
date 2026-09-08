@@ -32,7 +32,7 @@ void TFT_Driver::SSD1306_WRITECOMMAND(uint8_t data) {
 void TFT_Driver::SSD1306_WRITEDATA(uint8_t data) {
 	if (LCD->hi2c)  //I2C
 	{
-#ifdef TFT_USE_I2С
+#ifdef TFT_USE_I2C
 		uint8_t dt[2];
 		dt[0] = 0x40;
 		dt[1] = data;
@@ -117,7 +117,7 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 	if (LCD->hi2c)  //I2C
 	{
 
-#ifdef	TFT_USE_I2С
+#ifdef	TFT_USE_I2C
 
 
 //		for(uint8_t i = 0; i < 7; i++) {

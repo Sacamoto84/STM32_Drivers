@@ -53,8 +53,7 @@
 
 //#include <math.h>
 
-#include "logUART.h"
-extern classLog rtt;
+#include "timber.h"
 
 #define    DWT_CYCCNT    *(volatile uint32_t*)0xE0001004
 #define    DWT_CONTROL   *(volatile uint32_t*)0xE0001000
@@ -104,8 +103,8 @@ public:
 	void init(TIM_HandleTypeDef * htimer, bool timer16 = false)
 	{
 
-        rtt.print("\x1B[38;05;0;48;05;11mDWT>");
-		rtt.print("\x1B[48;05;10m SystemCoreClock %d \33[0m\n", SystemCoreClock);
+		timber.print("\x1B[38;05;0;48;05;11mDWT>");
+		timber.print("\x1B[48;05;10m SystemCoreClock %d \33[0m\n", SystemCoreClock);
 
 		bit16 = timer16;
 
@@ -129,10 +128,10 @@ public:
 	void Loger(char * str)
 	{
 		result = *Count - 2; //Поправка на вызов
-		rtt.print("\33[38;05;0;48;05;11mDWT>\33[38;05;15;48;05;0m [ %s ]>", str);
+		timber.print("\33[38;05;0;48;05;11mDWT>\33[38;05;15;48;05;0m [ %s ]>", str);
 		if (bit16) result = *Count + 2; //Вернем поправку на место
 		uint32_t timeus =  result/ tickToUs;
-		rtt.print("\33[38;05;10;48;05;0m %lu Tick > %lu us \33[0m\n", result, timeus);
+		timber.print("\33[38;05;10;48;05;0m %lu Tick > %lu us \33[0m\n", result, timeus);
 	}
 
 

@@ -18,6 +18,11 @@ void BitmapFromFlashAlpha(TFT * tft, int32_t x0, int32_t y0, Bitmap *bmp, float 
 		x = (index % (bmp->W)) + x0;
 		y =  bmp->H - ((index_max-index) / (bmp->W)) - 1 + y0;
 
+		//Клиппинг: не выходим за границы фреймбуфера
+		if (x < 0 || x >= tft->LCD->TFT_WIDTH ||
+			y < 0 || y >= tft->LCD->TFT_HEIGHT)
+			continue;
+
 		sAlpha_Float = (float) ((bmp->steam32[index] >> 24) / 255.0F)* customAlpha;
 
 		sR = bmp->steam32[index] >> 16;
@@ -40,4 +45,3 @@ void BitmapFromFlashAlpha(TFT * tft, int32_t x0, int32_t y0, Bitmap *bmp, float 
 		tft->LCD->buffer16[x + y * tft->LCD->TFT_WIDTH] = sColor;
 	}
 }
-

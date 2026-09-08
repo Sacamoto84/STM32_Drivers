@@ -14,7 +14,10 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 	if (!getRotatedBounds(tft_src, angle, &min_x, &min_y, &max_x, &max_y))
 		return false;
 
-	uint16_t sline_buffer[max_x - min_x + 1];
+	//Фиксированный буфер вместо VLA (диагональ экрана + запас)
+	#define TFT_ROT_LINE_BUF_MAX 720
+	if (max_x - min_x + 1 > TFT_ROT_LINE_BUF_MAX) return false;
+	static uint16_t sline_buffer[TFT_ROT_LINE_BUF_MAX];
 
 	int32_t xt = min_x - tft->_xPivot;
 	int32_t yt = min_y - tft->_yPivot;
@@ -54,15 +57,9 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 
 			if (tpcolor == rp) {
 				if (pixel_count) {
-					// TFT window is already clipped, so this is faster than pushImage()
-					//_tft->setWindow(x - pixel_count, y, x, y);
-					//_tft->pushPixels(sline_buffer, pixel_count);
-					//uint16_t *p2;
-					//p2 = &LCD->buffer16[0] + x - pixel_count + y * LCD->TFT_WIDTH;
 					for (uint16_t i = 0; i < pixel_count; i++)
-					//*p2++ = sline_buffer[i];
-					//pixel_count = 0;
-					tft->SetPixel(x-pixel_count+i, y, sline_buffer[i]);
+						tft->SetPixel(x-pixel_count+i, y, sline_buffer[i]);
+					pixel_count = 0; //СБРОС: без него буфер строки переполнялся
 				}
 			} else {
 				sline_buffer[pixel_count++] = rp;

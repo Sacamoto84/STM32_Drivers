@@ -2,7 +2,7 @@
 
  //Все гиф находятся в папке /Gif/%s/%d.bmp
  //Имя папки не более 8 символов
- 
+
  Gif gif;
  gif.init(&tft);
  gif.setName((char *)"tA");  Откуда брать gif
@@ -45,18 +45,35 @@
 #ifndef TFT_GIF_H_
 #define TFT_GIF_H_
 
+#include "TFT_config.h"
+
+#if (FAT_FS)
+
 #include "main.h"
 #include "TFT.h"
 
 #include "fatfs.h"
 
-#include <logUART.h>
-extern classLog rtt;
+//Логирование (опционально, define TFT_USE_TIMBER в TFT_config.h)
+#ifdef TFT_USE_TIMBER
+#include <timber.h>
+#define TFT_GIF_LOG(...) timber.print(__VA_ARGS__)
+#else
+#define TFT_GIF_LOG(...) do {} while (0)
+#endif
 
+//Замер времени отрисовки (опционально, define TFT_USE_DWT в TFT_config.h)
+#ifdef TFT_USE_DWT
 #include "HiSpeedDWT.h"
-
 extern HiSpeedDWT TimerT5;
 extern HiSpeedDWT TimerDWT;
+#define TFT_GIF_DWT_START() TimerDWT.Start()
+#define TFT_GIF_DWT_LOG(s) TimerDWT.Loger(s)
+#else
+#define TFT_GIF_DWT_START() do {} while (0)
+#define TFT_GIF_DWT_LOG(s) do {} while (0)
+#endif
+
 //https://lordicon.com/
 
 #include "../Bitmap/bitmap.h"
@@ -64,7 +81,7 @@ extern HiSpeedDWT TimerDWT;
 enum ANIMATION_TRIGGERS {
 	HOVER,      //Запуск без повторения застываем на последнем кадре
 	LOOP,       //Запуск с повторнением
-	MORPH,      //Запуск вперед пока есть поздействие и возврат
+	MORPH,      //Запуск вперед пока есть поздействование и возврат
 	BOOMERANG,  //Запуск приводит к движению в перед и назад
 	ONCE        //Запуск Сначала невидимого обьекта с последующим исчезновением в конце
 };
@@ -136,11 +153,11 @@ public:
 	void run(void) {calculate();}
 
 	void setName(char *name) {
-		sprintf(name_gif, "%s", name);
+		snprintf(name_gif, sizeof(name_gif), "%s", name);
 
 		//Читаем настройки
 		char current_patch[32]; //Полный путь к файлу
-		sprintf(current_patch, "/Gif/%s/i.txt", name_gif); //Собираем полный путь в файлу
+		snprintf(current_patch, sizeof(current_patch), "/Gif/%s/i.txt", name_gif); //Собираем полный путь в файлу
 		int res = f_open(&SDFile, current_patch, FA_READ);
 		char BMP_From_File_buf[64];
 
@@ -170,13 +187,13 @@ public:
 			f_gets(BMP_From_File_buf, 16, &SDFile);
 			index_max = atoi(BMP_From_File_buf) - 1;
 
-			rtt.print("(+) GIF name: %s  H: %d  W: %d  bit: %d  frame: %d\n", name_gif, H, W, field.bit, index_max + 1);
+			TFT_GIF_LOG("(+) GIF name: %s  H: %d  W: %d  bit: %d  frame: %d\n", name_gif, H, W, field.bit, index_max + 1);
 		}
 		f_close(&SDFile);
 
 	}
 
-	void setDelay(int i) {delay = i;}
+	void setDelay(uint32_t i) {delay = i;}
 	void setXY(int X, int Y) {x = X; y = Y;}
 	void setX(int X) {x = X;}
 	void setY(int Y) {y = Y;}
@@ -199,7 +216,7 @@ public:
 		unsigned int bit :2; //1-16 3-32 0-error
 	} field;
 
-	uint8_t  delay    = 100; //Задержка
+	uint32_t delay    = 100; //Задержка кадра, мс
 	Bitmap   bmpStop  = {0}; //Картинка отображаемая при отсуствии анимации
 	Bitmap   bmpStart = {0}; //Картинка отображаемая при отсуствии анимации
 
@@ -207,44 +224,45 @@ public:
 private:
 	//──────────────────────────────┬───────────────────────────────────┬──────────┐
 	uint16_t   index_max     = 0; //│ Максимальный индекс               │ private: │
-	int16_t    index_current = 0; //│ Текущий индекс                    └──────────┤
+	int32_t    index_current = 0; //│ Текущий индекс                    └──────────┤
 	                              //│                                              │
-	uint8_t H = 0;                //│                                              │
-	uint8_t W = 0;                //│                                              │
+	uint16_t H = 0;                //│                                              │
+	uint16_t W = 0;                //│                                              │
 	                              //│                                              │
 	int16_t x = 0;                //│                                              │
 	int16_t y = 0;                //│                                              │
 	                              //│                                              │
 	TFT *tft;                     //│                                              │
 	uint32_t start_time = 0;      //│ Записываем время начала проприсовки анимации │
-	char name_gif[8] = { 0 };     //│ Название Gif папки                           │
+	char name_gif[9] = { 0 };     //│ Название Gif папки                           │
 	//──────────────────────────────┴──────────────────────────────────────────────┘
 
 	//┌─────────────────────────────────────────────────────────────────┬──────────┐
     //│ Открыть картирку по индексу 16 и 24 бит                         │ private: │
 	//└─────────────────────────────────────────────────────────────────┴──────────┤
-	void openBMPfromIndex(uint8_t i) {
+	void openBMPfromIndex(uint16_t i) {
 
-		if (i>index_max) return;
+		if (i > index_max) return;
 
 		char current_patch[32]; //Полный путь к файлу
-		sprintf(current_patch, "/Gif/%s/res.bin", name_gif); //Собираем полный путь в файлу
+		snprintf(current_patch, sizeof(current_patch), "/Gif/%s/res.bin", name_gif); //Собираем полный путь в файлу
 
 		int res = f_open(&SDFile, current_patch, FA_READ); //1667us -Of Gen off Fat32 2к  1360 Fat16 16к
 
 		//Ошибка открытия картинки с microSD
 		if(res != FR_OK)		{
-			rtt.print("\033[01;38;05;51mGif>\033[01;38;05;196mERROR open>\033[01;38;05;46m%s\n", current_patch);
+			TFT_GIF_LOG("\033[01;38;05;51mGif>\033[01;38;05;196mERROR open>\033[01;38;05;46m%s\n", current_patch);
 			f_close(&SDFile);  //7uS
 		    return;
 		}
 
-		uint8_t BMP_From_File_buf[4100] __attribute__((aligned (4)));
+		//Общий статический буфер (не на стеке). Функция не реентерабельна (использует SDFile)
+		static uint8_t BMP_From_File_buf[4096] __attribute__((aligned (4)));
 
 		uint32_t index;
 		UINT bytesread;
 
-		uint32_t max = H * W;
+		uint32_t max = (uint32_t)H * W;
 		int32_t _x, _y;
 
 		float sAlpha_Float;
@@ -261,10 +279,10 @@ private:
 
 		if (field.bit == BIT32) {
 
-			res = f_lseek(&SDFile, i * max * 4); //656us -Of Gen off
+			res = f_lseek(&SDFile, (uint32_t)i * max * 4); //656us -Of Gen off
 			if(res != FR_OK)
 			{
-				rtt.print("Gif>32>ERROR f_lseek\r\n");
+				TFT_GIF_LOG("Gif>32>ERROR f_lseek\r\n");
 				f_close(&SDFile);  //7uS
 			    return;
 			}
@@ -274,11 +292,15 @@ private:
 				if (index % 1024 == 0) {
 					f_read(&SDFile, &BMP_From_File_buf[0], 4096,
 							&bytesread); ////915us -Of Gen off
-					//p = (uint32_t *)&BMP_From_File_buf[0];
 				}
 
 				_x = (index % W) + x;
 				_y = (index / W) + y;
+
+				//Клиппинг: не выходим за границы фреймбуфера
+				if (_x < 0 || _x >= tft->LCD->TFT_WIDTH ||
+					_y < 0 || _y >= tft->LCD->TFT_HEIGHT)
+					continue;
 
 				sAlpha_Float = BMP_From_File_buf[(index % 1024) * 4 ] / 255.0F;
 				sR           = BMP_From_File_buf[(index % 1024) * 4 + 1];
@@ -307,10 +329,10 @@ private:
 
 
 		if (field.bit == BIT16) {
-			res = f_lseek(&SDFile, i * max * 2); //656us -Of Gen off
+			res = f_lseek(&SDFile, (uint32_t)i * max * 2); //656us -Of Gen off
 			if(res != FR_OK)
 			{
-				rtt.print("Gif>16>ERROR f_lseek\n");
+				TFT_GIF_LOG("Gif>16>ERROR f_lseek\n");
 				f_close(&SDFile);  //7uS
 			    return;
 			}
@@ -326,6 +348,12 @@ private:
 				}
 				_x = (index % W) + x;
 				_y = (index / W) + y;
+
+				//Клиппинг: не выходим за границы фреймбуфера
+				if (_x < 0 || _x >= tft->LCD->TFT_WIDTH ||
+					_y < 0 || _y >= tft->LCD->TFT_HEIGHT)
+					continue;
+
 				sColor = *p16++;
 				tft->LCD->buffer16[_x + _y * tft->LCD->TFT_WIDTH] = sColor;
 			}
@@ -334,6 +362,8 @@ private:
 			return;
 		}
 
+		//Битность не поддержана (24 бит или ошибка конфигурации) - закрываем файл
+		f_close(&SDFile);
 	}
 	//─────────────────────────────────────────────────────────────────────────────┘
 
@@ -343,7 +373,9 @@ private:
 	void calculate(void) {
 
 		//Расчет следующего интекса с учетом времени кадра
-		//if ((uwTick - start_time) > delay)
+		if ((uwTick - start_time) <= delay)
+			return;
+
 		{
 
 			if (trigger == MORPH) {
@@ -356,15 +388,15 @@ private:
 						index_current = 0;
 
 						switch (bmpStart.bit) {
-							case 32: Bitmap_From_Flash_32b(x, y, &bmpStart);	break;
-							case 24: Bitmap_From_Flash_24b(x, y, &bmpStart);	break;
-							case 16: Bitmap_From_Flash_16b(x, y, &bmpStart);	break;
+							case 32: BitmapFromFlash32b(tft, x, y, &bmpStart);	break;
+							case 24: BitmapFromFlash24b(tft, x, y, &bmpStart);	break;
+							case 16: BitmapFromFlash16b(tft, x, y, &bmpStart);	break;
 							default: openBMPfromIndex(0); break; //Когда нет картинки в ресурсах
 						}
 
 					}
 					else
-					  openBMPfromIndex(index_current--);
+					  openBMPfromIndex(index_current);
 
 					start_time = uwTick; //Запомнили начало
 					return;
@@ -377,9 +409,9 @@ private:
 						index_current = index_max;
 
 						switch (bmpStop.bit) {
-							case 32: Bitmap_From_Flash_32b(x, y, &bmpStop);	break;
-							case 24: Bitmap_From_Flash_24b(x, y, &bmpStop);	break;
-							case 16: Bitmap_From_Flash_16b(x, y, &bmpStop);	break;
+							case 32: BitmapFromFlash32b(tft, x, y, &bmpStop);	break;
+							case 24: BitmapFromFlash24b(tft, x, y, &bmpStop);	break;
+							case 16: BitmapFromFlash16b(tft, x, y, &bmpStop);	break;
 							default: openBMPfromIndex(index_max); break; //Когда нет картинки в ресурсах
 						}
 
@@ -400,9 +432,9 @@ private:
 				if (state_animation == STOP) {
 
 					switch (bmpStart.bit) {
-						case 32: Bitmap_From_Flash_32b(x, y, &bmpStart);	break;
-						case 24: Bitmap_From_Flash_24b(x, y, &bmpStart);	break;
-						case 16: Bitmap_From_Flash_16b(x, y, &bmpStart);	break;
+						case 32: BitmapFromFlash32b(tft, x, y, &bmpStart);	break;
+						case 24: BitmapFromFlash24b(tft, x, y, &bmpStart);	break;
+						case 16: BitmapFromFlash16b(tft, x, y, &bmpStart);	break;
 						default: openBMPfromIndex(0); break; //Когда нет картинки в ресурсах
 					}
 
@@ -460,9 +492,9 @@ private:
 				if (state_animation == STOP) {
 
 					switch (bmpStart.bit) {
-						case 32: Bitmap_From_Flash_32b(x, y, &bmpStart);	break;
-						case 24: Bitmap_From_Flash_24b(x, y, &bmpStart);	break;
-						case 16: Bitmap_From_Flash_16b(x, y, &bmpStart);	break;
+						case 32: BitmapFromFlash32b(tft, x, y, &bmpStart);	break;
+						case 24: BitmapFromFlash24b(tft, x, y, &bmpStart);	break;
+						case 16: BitmapFromFlash16b(tft, x, y, &bmpStart);	break;
 						default: openBMPfromIndex(0); break; //Когда нет картинки в ресурсах
 					}
 
@@ -477,12 +509,11 @@ private:
 			//Один раз воспроизвести и остановиться на последнем кадре
 			if (trigger == HOVER) {
 				if (state_animation == STOP) {
-					//SEGGER_RTT_WriteString(0, "STOP\n");
 
 					switch (bmpStop.bit) {
-						case 32: Bitmap_From_Flash_32b(x, y, &bmpStop);	break;
-						case 24: Bitmap_From_Flash_24b(x, y, &bmpStop);	break;
-						case 16: Bitmap_From_Flash_16b(x, y, &bmpStop);	break;
+						case 32: BitmapFromFlash32b(tft, x, y, &bmpStop);	break;
+						case 24: BitmapFromFlash24b(tft, x, y, &bmpStop);	break;
+						case 16: BitmapFromFlash16b(tft, x, y, &bmpStop);	break;
 						default: openBMPfromIndex(index_max); break; //Когда нет картинки в ресурсах
 					}
 
@@ -492,11 +523,9 @@ private:
 
 				if (state_animation == PLAY) {
 
-					//SEGGER_RTT_WriteString(0, "PLAY\n");
-
-					TimerDWT.Start();
+					TFT_GIF_DWT_START();
 					openBMPfromIndex(index_current);
-					TimerDWT.Loger((char*)"openBMPfromIndex");
+					TFT_GIF_DWT_LOG((char*)"openBMPfromIndex");
 
 					index_current++;
 					if (index_current > index_max) {
@@ -537,108 +566,8 @@ private:
 		start_time = uwTick; //Запомнили начало
 	}
 
-	//┌─────────────────────────────────────────────────────────────────┬──────────┐
-    //│ Открыть картирку из флеш                                        │ private: │
-	//└─────────────────────────────────────────────────────────────────┴──────────┤
-	void Bitmap_From_Flash_16b(int16_t X, int16_t Y, Bitmap *bmp) {
-
-			const uint16_t *p16;
-			p16 = (uint16_t *)bmp->data;
-			int32_t pX;
-			int32_t pY;
-		    int _H = bmp->H + Y;
-		    int _W = bmp->W + X;
-
-			for ( pY = Y; pY < _H; pY++) {
-				for ( pX = X; pX < _W; pX++)
-				    tft->LCD->buffer16[pX + pY * tft->LCD->TFT_WIDTH] = *p16++;
-			}
-	}
-
-	void Bitmap_From_Flash_24b(int16_t X, int16_t Y, Bitmap *bmp) {
-
-		    rtt.print("Bitmap_From_Flash_24b\n");
-
-			const uint8_t *p8;
-			p8 = (uint8_t *)bmp->data;
-			int32_t pX;
-			int32_t pY;
-		    int _H = bmp->H + Y;
-		    int _W = bmp->W + X;
-
-		    uint8_t A, HI;
-			uint16_t Color;
-			uint16_t dColor;
-			uint32_t delta;
-
-			for ( pY = Y; pY < _H; pY++) {
-				for ( pX = X; pX < _W; pX++)
-				{
-					A = *p8++;
-				    HI = *p8++;
-				    Color = HI | ( *p8++ << 8 );
-				    delta = pX + pY * 240;
-				    dColor = tft->LCD->buffer16[delta];
-				    tft->LCD->buffer16[delta] = tft->alphaBlend(A, Color, dColor);
-				}
-			}
-
-	}
-
-	//32 бит BMP с альфа каналом Сохранять как инвертированая альфа и свап, customAlpha = 1.0 полная альфа
-	void Bitmap_From_Flash_32b(int16_t x0, int16_t y0,	Bitmap *bmp) {
-
-		uint32_t sColor;
-		uint32_t dColor;
-
-		uint32_t sR, sG, sB;
-		uint32_t dR, dG, dB;
-		uint32_t R, G, B;
-
-		int32_t alpha;
-		int32_t oneminusalpha;
-
-		int _H = bmp->H + y0;
-		int _W = bmp->W + x0;
-
-		int32_t pX;
-		int32_t pY;
-
-		uint32_t deltaX;
-
-		uint8_t *p8;
-		p8 = (uint8_t *)&bmp->data[0];
-
-		for ( pY = y0; pY < _H; pY++) {
-			for ( pX = x0; pX < _W; pX++)
-			{
-				deltaX = pX + pY * 240;
-
-				alpha = *p8++;
-				sR    = *p8++;
-				sG    = *p8++;
-				sB    = *p8++;
-
-				dColor = tft->LCD->buffer16[deltaX]; //GetPixel(x, y);
-
-				dR = (dColor & 0xF800) >> 8;
-				dG = (dColor & 0x7E0)  >> 3;
-				dB = (dColor & 0x1F)   << 3;
-
-				oneminusalpha = 255 - alpha;
-
-				R = (uint8_t)(((sR * alpha) + (oneminusalpha * dR)) >> 11 );
-				G = (uint8_t)(((sG * alpha) + (oneminusalpha * dG)) >> 10 );
-				B = (uint8_t)(((sB * alpha) + (oneminusalpha * dB)) >> 11 );
-
-				sColor = (R << 11) | (G << 5) | B; //tft->RGB565(R, G, B); //(R << 11) | (G << 5) | (B << 0); //
-				tft->LCD->buffer16[deltaX] = sColor;
-
-			}
-
-		}
-	}
-	//─────────────────────────────────────────────────────────────────────────────┘
 };
+
+#endif /* FAT_FS */
 
 #endif /* TFT_GIF_H_ */

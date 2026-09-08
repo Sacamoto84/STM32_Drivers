@@ -6,9 +6,9 @@
  extern "C" {
 #endif 
 
-#define convert24to32(x) (x|0xFF000000)
-#define convert24to16(x) (((x & 0x00f80000) >> 19) | ((x & 0x0000fc00) >> 5) |((x & 0x000000f8) << 8))
-#define RGB565(R,G,B)    ((R >> 3) << 11) | ((G >> 2) << 5) | (B >> 3)
+#define convert24to32(x) (((x) | 0xFF000000u))
+#define convert24to16(x) ((((x) & 0x00f80000) >> 19) | (((x) & 0x0000fc00) >> 5) | (((x) & 0x000000f8) << 8))
+#define RGB565(R,G,B)    ((((R) >> 3) << 11) | (((G) >> 2) << 5) | ((B) >> 3))
 
 /*  Colors are 565 RGB (5 bits Red, 6 bits green, 5 bits blue) */
 #define BLACK           0x0000
@@ -21,7 +21,7 @@
 #define WHITE           0xFFFF	
 
 /* RGB 24-bits color table definition (RGB888). */
-#define RGB888_RGB565(color) ((((color) >> 19) & 0x1f) << 11) | ((((color) >> 10) & 0x3f) << 5) | (((color) >> 3) & 0x1f)
+#define RGB888_RGB565(color) (((((color) >> 19) & 0x1f) << 11) | ((((color) >> 10) & 0x3f) << 5) | (((color) >> 3) & 0x1f))
 
 #define COLOR_BLACK          RGB888_RGB565(0x000000u)
 #define COLOR_WHITE          RGB888_RGB565(0xFFFFFFu)

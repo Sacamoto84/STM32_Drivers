@@ -16,48 +16,50 @@ void BMPFromFileTransparent(TFT * tft, int32_t x0, int32_t y0, char * Name, uint
 
 	uint8_t * buf =  NULL;
 
-
-	BITMAPINFOHEADER bmp_header;
-
+	uint32_t offBits, width, height, clrUsed;
+	uint16_t bitCount;
 
 	res = f_open(&SDFile, Name, FA_READ);
 
 	if (res == FR_OK)
 	{
-		buf = (uint8_t*)malloc(4100);
+		buf = (uint8_t*)malloc(4096);
+		if (buf == NULL) {
+			f_close(&SDFile);
+			return;
+		}
 
-		f_read (&SDFile, &bmp_header_buffer, 54, &bytesread);
+		res = f_read (&SDFile, &bmp_header_buffer[0], 54, &bytesread);
 
-		bmp_header.bfType     = (uint16_t *)&bmp_header_buffer[0];
-		bmp_header.bfSize     = (uint32_t *)&bmp_header_buffer[2];
-		bmp_header.bfOffBits  = (uint32_t *)&bmp_header_buffer[10];
-		bmp_header.biWidth    = (uint32_t *)&bmp_header_buffer[18];
-		bmp_header.biHeight   = (uint32_t *)&bmp_header_buffer[22];
-		bmp_header.biBitCount = (uint16_t *)&bmp_header_buffer[28];
-		bmp_header.biClrUsed  = (uint32_t *)&bmp_header_buffer[46];
+		if (res == FR_OK && BMP_ParseHeader(bmp_header_buffer, bytesread,
+				&offBits, &width, &height, &bitCount, &clrUsed))
+		{
 
-		if (*bmp_header.biClrUsed != 0) //Палитра используется
+		if (clrUsed != 0) //Палитра используется
 		{
 
 		  uint16_t bmp_color_table[256];        //Сама палитра
 		  uint32_t bmp_buffer_color_table[256]; //Буффер читаемый для патитры 1K
 
 		  //Читаем таблицу палитры
-		  f_read (&SDFile, &bmp_buffer_color_table, *bmp_header.biClrUsed*4, &bytesread);
+		  f_read (&SDFile, &bmp_buffer_color_table[0], clrUsed * 4, &bytesread);
 
 		  //Конвертируем таблицу плитры
-		  for(uint32_t i=0; i < *bmp_header.biClrUsed;i++) bmp_color_table[i] = RGB888_RGB565(bmp_buffer_color_table[i]);
+		  for(uint32_t i=0; i < clrUsed;i++) bmp_color_table[i] = RGB888_RGB565(bmp_buffer_color_table[i]);
+
+		  //Данные пикселей начинаются с bfOffBits
+		  f_lseek(&SDFile, offBits);
 
 		  //Максимальный индекс
-		  index_max = *bmp_header.biWidth * *bmp_header.biHeight;
+		  index_max = width * height;
 
 		  for(index = 0; index < index_max; index++)
 		  {
 			  if (index % 4096 == 0)
-					f_read (&SDFile, &buf, 4096, &bytesread);
-			  x = (index % (*bmp_header.biWidth)) + x0;
-			  y = *bmp_header.biHeight - (index / (*bmp_header.biWidth)) - 1 + y0;
-				if (x <= (int32_t)*bmp_header.biWidth)
+					f_read (&SDFile, buf, 4096, &bytesread);
+			  x = (index % width) + x0;
+			  y = height - (index / width) - 1 + y0;
+				if (x <= (int32_t)width && bytesread >= (index % 4096) + 1)
 				{
 					color =  bmp_color_table[buf[index % 4096]];
                     if (color != tr_color )
@@ -66,28 +68,26 @@ void BMPFromFileTransparent(TFT * tft, int32_t x0, int32_t y0, char * Name, uint
 		  }
 
 		}
-		else //Палитра не используется
+		else if (bitCount == 24) //Палитра не используется, 24 бита на пиксель
 		{
-			if (*bmp_header.biBitCount == 24)
-			{
+				f_lseek(&SDFile, offBits);
 
-				index_max = *bmp_header.biWidth * *bmp_header.biHeight;
+				index_max = width * height;
 				for(index = 0; index < index_max; index++)
 				{
 					if (index % 1365 == 0)
-						f_read (&SDFile, &buf, 4095, &bytesread);
-					x = (index % (*bmp_header.biWidth)) + x0;
-					y = *bmp_header.biHeight - (index / (*bmp_header.biWidth)) - 1 + y0;
-					if (x <= (int32_t)*bmp_header.biWidth)
+						f_read (&SDFile, buf, 4095, &bytesread);
+					x = (index % width) + x0;
+					y = height - (index / width) - 1 + y0;
+					if (x <= (int32_t)width && bytesread >= (index % 1365) * 3 + 3)
 					{
-
 						color = RGB565(buf[(index % 1365)*3+2], buf[(index % 1365)*3+1],buf[(index % 1365)*3]);
 						if (color != tr_color )
 					    tft->SetPixel(x,y, color);
 
 					}
 				}
-			}
+		}
 		}
 		f_close(&SDFile);
 	}

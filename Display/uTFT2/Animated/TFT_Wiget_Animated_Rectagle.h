@@ -13,8 +13,6 @@
 #include "../Animated/EasingProvider.h"
 #include "../TFT.h"
 
-extern uint16_t palitra[];
-
 class TFT_Animated_Rectagle {
 public:
 
@@ -24,10 +22,11 @@ public:
 	void setW (uint16_t _W )              { W =_W;         }
 	void setXY(uint16_t X, uint16_t Y )   { x = X; y = Y;  }
 	void setX (uint16_t X)                { x = X;         }
-	void setY (uint16_t Y )               { y = constrain(Y, 0, 240);}
+	void setY (uint16_t Y)                { if (tft && tft->LCD) y = constrain(Y, 0, tft->LCD->TFT_HEIGHT - 1); else y = Y; }
 	List_Update_Particle info(void)       { List_Update_Particle U;  U.H = H; U.W = W; U.x0 = x; U.y0 = y; U.x1 = x + W - 1; U.y1 = y + H - 1; return U; }
     void setEaseP(Ease e)                 { easeP = e; } //Выбор типа движения в анимации
     void setEaseN(Ease e)                 { easeN = e; } //Выбор типа движения в анимации
+    void setColor(uint16_t c)             { color = c; } //Цвет закраски
 
     uint8_t needUpdate(void)              {
     	if (_needUpdate)
@@ -41,7 +40,6 @@ public:
     {
 
        float temp;
-       //char str[32];
 
        float elapsedTimeRate; //Состояние онимации от 0.0 до 1.0
 
@@ -53,18 +51,18 @@ public:
 
     	  elapsedTimeRate = Easing.get(easeP, temp ); //Получаем коеффициент смещения 0..1 от времени c учетом типа анимации
 
-    	  if (typeAnimation == 0){  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, palitra[18]);  }
+    	  if (typeAnimation == 0){  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, color);  }
 
     	  if (typeAnimation == 1){
               for(int i = y; i< y+H; i++){
-    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2,  palitra[18]);}
-    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, palitra[18]);  }
+    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2,  color);}
+    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, color);  }
 
     	  if (typeAnimation == 2){
               uint16_t col = tft->GetPixel(x, y);
               if (elapsedTimeRate >= 1.0F) elapsedTimeRate = 1.0F;
               if (elapsedTimeRate <= 0.0F) elapsedTimeRate = 0.0F;
-              uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), palitra[18], col);
+              uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), color, col);
     		  tft->RectangleFilled(x, y, W, H, newcolor);  }
 
     	  _needUpdate = 1;
@@ -74,8 +72,6 @@ public:
     	if (N)
     	{
     	  temp = (1.0F - Gloabal_percent) + (float)( (float)( uwTick - animation_start_time_N ) / animation_max_time_N ); //Получаем время 0..1 анимации
-    	  //sprintf(str, "id:%d (-) run temp:%f Now:%f, animation_start_time_N:%f \n", id, temp, (float)Now, animation_start_time_N);
-    	  //SEGGER_RTT_WriteString(0, str);
 
     	  if (temp >= 1.0F) {N = 0; temp = 1.0F; } //Анимацию больше не использовать
     	  temp = constrain(temp, 0.0F, 1.0F);
@@ -84,15 +80,15 @@ public:
 
     	  if (typeAnimation == 0)
     	  {
-    		  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, palitra[18]);
+    		  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, color);
     	  }
 
     	  if (typeAnimation == 1)
     	  {
               for(int i = y; i< y+H; i++)
-    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2-1,  palitra[18]);
+    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2-1,  color);
 
-    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, palitra[18]);
+    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, color);
     	  }
 
     	  if (typeAnimation == 2)
@@ -101,7 +97,7 @@ public:
               if (elapsedTimeRate >= 1.0F) elapsedTimeRate = 1.0F;
               if (elapsedTimeRate <= 0.0F) elapsedTimeRate = 0.0F;
 
-              uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), palitra[18], col);
+              uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), color, col);
 
     		  tft->RectangleFilled(x, y, W, H, newcolor);
     	  }
@@ -112,22 +108,11 @@ public:
 
        if ((P == 0) && (_select == 1))
        {
-	     tft->RectangleFilled(x, y, W, H, palitra[18]);
-
-	     //if (_needUpdate)
-	    	 _needUpdate = 1;
-	     //else
-	     //   _needUpdate = 0;
+	     tft->RectangleFilled(x, y, W, H, color);
+    	 _needUpdate = 1;
        }
 
-      // if ((N == 0) && (_select == 0))
-      //{_needUpdate = 1;}
-	   //  tft->RectangleFilled(x, y, 0, H, BLUE);
-
     }
-
-
-
 
 
 	void select(uint8_t s)
@@ -135,14 +120,11 @@ public:
 
 		_select = s;
 
-		//SEGGER_RTT_printf(0, "select= %d\n", s);
-
 		if ((_select == 1) && (_select_last ==  0))
 		{
 		  P = 1;
 		  N = 0;
 		  animation_start_time_P = uwTick;
-		  //SEGGER_RTT_printf(0, "id:%d onChangeP P1 N0 Now:%f \n", animation_start_time_P);
 		  _select_last = s;
 		  return;
 		}
@@ -152,7 +134,6 @@ public:
            P = 0;
 		   N = 1;
 		   animation_start_time_N =  uwTick;
-		   //SEGGER_RTT_printf(0, "id:%d onChangeN P0 N1 Now:%f \n", animation_start_time_N);
 		}
 
 		_select_last = s;
@@ -160,14 +141,14 @@ public:
 	}
 
   //https://tympanus.net/Development/CreativeButtons/
-  uint8_t typeAnimation; //Тип анимации 0-слева линейное 1-из середины в 2 стороны 2-закраска квадрата
+  uint8_t typeAnimation = 0; //Тип анимации 0-слева линейное 1-из середины в 2 стороны 2-закраска квадрата
 
 private:
-	TFT * tft;
+	TFT * tft = NULL;
 
 	uint16_t W = 1;    //Ширина кнопки
 	uint16_t H = 1;    //Высота кнопки
-	uint16_t bc_color; //Цвет фона
+	uint16_t color = 0xFFFF; //Цвет закраски (вместо внешней palitra[])
 	uint16_t x = 0;
 	uint16_t y = 0;
 
@@ -178,16 +159,16 @@ private:
 	uint8_t _select = 0;
 	uint8_t _select_last = 0;
 
-    uint8_t _needUpdate; //Флаг того что нужно обновить обьект
+    uint8_t _needUpdate = 0; //Флаг того что нужно обновить обьект
 
 	int8_t P = 0; //Флаг того что положительный фронт
 	int8_t N = 0; //
 
-	uint32_t animation_start_time_P; //Время старта анимации
-	uint32_t animation_start_time_N; //Время старта анимации
+	uint32_t animation_start_time_P = 0; //Время старта анимации
+	uint32_t animation_start_time_N = 0; //Время старта анимации
     float    animation_max_time_P =  500.0F; //Длинна анимации в ms
     float    animation_max_time_N =  500.0F; //Длинна анимации в ms
-    float    Gloabal_percent;
+    float    Gloabal_percent = 0.0F;
 
 };
 

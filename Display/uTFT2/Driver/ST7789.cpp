@@ -29,42 +29,6 @@ void TFT_Driver::ST7789_Init(void) {
 
 	SPI.SendCmd(ST77XX_GAMSET);               // ST77XX_GAMSET         0x26
 	SPI.SendData(0x02); // Gamma curve 2 (G1.8)  ST77XX_DGMEN          0xBA
-	//SPI.SendCmd(ST77XX_DGMEN);
-	//SPI.SendData(0x04); // Enable gamma
-
-	//SPI.SendCmd(0xe0);   // Positive Voltage Gamma Control
-	//SPI.SendData(0xd0);
-	//SPI.SendData(0x00);
-	//SPI.SendData(0x03);
-	//	SPI.SendData(0x08);
-	//SPI.SendData(0x0a);
-	//SPI.SendData(0x17);
-	//SPI.SendData(0x2e);
-	//SPI.SendData(0x44);
-	//SPI.SendData(0x3f);
-	//SPI.SendData(0x29);
-	//SPI.SendData(0x10);
-	//SPI.SendData(0x0e);
-	//SPI.SendData(0x14);
-	//SPI.SendData(0x18);
-
-	//SPI.SendCmd(0xe1);   // Negative Voltage Gamma Control
-	//See datasheet for more information
-	//SPI.SendData(0xd0);
-	//SPI.SendData(0x00);
-	//SPI.SendData(0x03);
-	//SPI.SendData(0x08);
-	//SPI.SendData(0x0a);
-	//SPI.SendData(0x17);
-	//SPI.SendData(0x2e);
-	//SPI.SendData(0x44);
-	//SPI.SendData(0x3f);
-	//SPI.SendData(0x29);
-	//SPI.SendData(0x10);
-	//SPI.SendData(0x0e);
-	//SPI.SendData(0x14);
-	//SPI.SendData(0x18);
-
 
 	SPI.SendCmd(0xe0);   // Positive Voltage Gamma Control
 	SPI.SendData(0xd0);
@@ -135,8 +99,12 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 	if (blockUpdate) return;
 
-	//uint16_t line_bufferActive[LCD->TFT_WIDTH];
-	//uint16_t line_bufferNext[LCD->TFT_WIDTH];
+	//Клиппинг окна
+	if (x0 < 0) x0 = 0;
+	if (y0 < 0) y0 = 0;
+	if (x1 >= LCD->TFT_WIDTH)  x1 = LCD->TFT_WIDTH - 1;
+	if (y1 >= LCD->TFT_HEIGHT) y1 = LCD->TFT_HEIGHT - 1;
+	if (x0 > x1 || y0 > y1) return;
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_0;
@@ -167,26 +135,14 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 	/////////////////Spi8to16(LCD); //16bit mode
 	if (LCD->Bit == 4) {
-		for (int i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH) - 1; i++) {
-			if (i % 2) {
-				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
-				//LCD->hspi->Instance->DR = LCD->palete[(LCD->buffer8[i / 2]) & 0x0F]; //4 bit
-				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
-
-				LCD->hspi->Instance->DR =  LCD->palete[(LCD->buffer8[i / 2]) & 0x0F]; // write data to be transmitted to the SPI data register
-				while( !(LCD->hspi->Instance->SR & SPI_FLAG_TXE) );  // wait until transmit complete
-				while( !(LCD->hspi->Instance->SR & SPI_FLAG_RXNE) ); // wait until receive complete
-				while( LCD->hspi->Instance->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
-				LCD->hspi->Instance->DR; // return received data from SPI data register
-			} else {
-				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
-				//LCD->hspi->Instance->DR = LCD->palete[(LCD->buffer8[i / 2]) >> 4]; //4 bit
-
-				LCD->hspi->Instance->DR =  LCD->palete[(LCD->buffer8[i / 2]) >> 4]; // write data to be transmitted to the SPI data register
-				while( !(LCD->hspi->Instance->SR & SPI_FLAG_TXE) );  // wait until transmit complete
-				while( !(LCD->hspi->Instance->SR & SPI_FLAG_RXNE) ); // wait until receive complete
-				while( LCD->hspi->Instance->SR & SPI_FLAG_BSY ); // wait until SPI is not busy anymore
-				LCD->hspi->Instance->DR; // return received data from SPI data register
+		//Отправляем только пиксели заданного окна.
+		//Старший ниббель - четный x, младший - нечетный (см. SetPixel4)
+		for (int32_t y = y0; y <= y1; y++) {
+			for (int32_t x = x0; x <= x1; x++) {
+				uint8_t b = LCD->buffer8[y * (LCD->TFT_WIDTH / 2) + x / 2];
+				uint16_t c = (x & 1) ? LCD->palete[b & 0x0F] : LCD->palete[b >> 4];
+				LCD->hspi->Instance->DR = c;
+				while (!(LCD->hspi->Instance->SR & SPI_FLAG_TXE));
 			}
 		}
 	}
@@ -216,15 +172,10 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 		}
 	}
 
-////	uTFT_DMA_completed = 0;
-////
-////	HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)LCD->buffer16[0], LCD->TFT_HEIGHT*LCD->TFT_WIDTH);
-////
-////	while (uTFT_DMA_completed == 0)
-////	{
-////	}
-	while (!(LCD->hspi->Instance->SR & SPI_SR_TXE))
-		;
+	//Ждем фактического завершения передачи (TXE + BSY),
+	//иначе переключение DFF/выключение SPI оборвет последнее слово
+	while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
+	while (LCD->hspi->Instance->SR & SPI_SR_BSY);
 
 	SPI.Spi16to8(); //8bit mode
 
@@ -308,164 +259,18 @@ void TFT_Driver::ST77XX_Update_MADCTL(void) {
 }
 
 void TFT_Driver::ST7789_Update_Window(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
-
-	if (blockUpdate) return;
-
-	if (LCD->GPIO_CS != NULL) {
-		CS_0;
-	}
-
-	uint8_t x1c = constrain(x1, 0, LCD->TFT_WIDTH - 1);
-	uint8_t x2c = constrain(x2, 0, LCD->TFT_WIDTH - 1);
-
-	uint8_t y1c = constrain(y1, 0, LCD->TFT_HEIGHT - 1);
-	uint8_t y2c = constrain(y2, 0, LCD->TFT_HEIGHT - 1);
-
-	int32_t x = 0;
-	int32_t y, i;
-
-	SPI.SendCmd(0x2A);     // Column addr set
-	SPI.SendData(0);     //??????? ??? XSTART
-	SPI.SendData(x1c + LCD->dx);     //??????? ??? XSTART
-	SPI.SendData(0);     //???????  ??? XEND
-	SPI.SendData(x2c + LCD->dx);    //??????? ??? XEND
-
-	SPI.SendCmd(0x2B); // Row addr set
-	SPI.SendData(0x00);
-	SPI.SendData(y1c + LCD->dy); //TFT_YSTART
-	SPI.SendData(0x00);
-	SPI.SendData(y2c + LCD->dy); //TFT_YSTART
-
-	SPI.SendCmd(0x2C); //Memory write
-
-	//LCD->hspi->Instance->CR1 |= SPI_CR1_DFF;
-	SPI.Spi8to16();
-
-	DATA;
-
-	//uint32_t count = (x2c - x1c) * (y2c - y1c);
-
-	/////////////////Spi8to16(LCD); //16bit mode
-
-	if (LCD->Bit == 4) {
-		for (i = 0; i < (LCD->TFT_HEIGHT * LCD->TFT_WIDTH) - 1; i++) {
-			if (i % 2) {
-				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
-				//LCD->hspi->Instance->DR = LCD->palete[(LCD->buffer8[i / 2])& 0x0F]; //4 bit
-
-				//SPI1->DR = data; // write data to be transmitted to the SPI data register
-				//while( !(SPI1->SR & SPI_I2S_FLAG_TXE) ); // wait until transmit complete
-				//while( !(SPI1->SR & SPI_I2S_FLAG_RXNE) ); // wait until receive complete
-				//while( SPI1->SR & SPI_I2S_FLAG_BSY ); // wait until SPI is not busy anymore
-				//return SPI1->DR; // return received data from SPI data register
-
-
-
-
-
-
-			} else {
-				//while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
-				//LCD->hspi->Instance->DR = LCD->palete[(LCD->buffer8[i / 2]) >> 4]; //4 bit
-			}
-		}
-	}
-
-	if (LCD->Bit == 16) {
-		uint16_t *p;
-
-		for (y = y1c; y < y2c; y++) {
-			p = &LCD->buffer16[0] + y * LCD->TFT_WIDTH + x1c;
-			for (x = 0; x < (x2c - x1c) + 1; x++) {
-
-				while (!(LCD->hspi->Instance->SR & SPI_SR_TXE))
-					;
-				LCD->hspi->Instance->DR = *p++;
-
-			}
-		}
-
-	}
-
-////	uTFT_DMA_completed = 0;
-////
-////	HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)LCD->buffer16[0], LCD->TFT_HEIGHT*LCD->TFT_WIDTH);
-////
-////	while (uTFT_DMA_completed == 0)
-////	{
-////	}
-	while (!(LCD->hspi->Instance->SR & SPI_SR_TXE))
-		;
-
-	SPI.Spi16to8(); //8bit mode
-
-	if (LCD->GPIO_CS != NULL) {
-		CS_1;
-	}
+	//Делегируем основному обновлению: внутри клиппинг, поддержка 4/16 бит,
+	//ожидание BSY перед сменой DFF
+	ST7789_Update((int)x1, (int)y1, (int)x2, (int)y2);
 }
 
-void TFT_Driver::ST7789_UpdateDMA4bit(void) {
-
-	if (blockUpdate) return;
-
-	uint16_t line_buffer0[LCD->TFT_WIDTH];
-	//uint16_t line_buffer1[LCD->TFT_WIDTH];
-
-	if (LCD->GPIO_CS != NULL) {
-		CS_0;
-	}
-
-	//int32_t i = 0;
-	uint8_t HI;
-	uint8_t LO;
-
-	HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-	LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
-
-	SPI.SendCmd(0x2A);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dx);
-	SPI.SendData(HI);
-	SPI.SendData(LO);
-	SPI.SendCmd(0x2B);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
-	SPI.SendCmd(0x2C); //Memory write
-
-	SPI.Spi8to16();
-
-	DATA;
-	/////////////////Spi8to16(LCD); //16bit mode
-
-	DMA_TX_Complete = 0;
-
-	uint32_t index = 0; // ������ �� 0 �� ����� �����
-
-	for (uint16_t index_line = 0; index_line < LCD->TFT_HEIGHT; index_line++) {
-
-		for (int32_t row = 0; row < LCD->TFT_WIDTH; row++) {
-
-			if (index % 2) {
-				line_buffer0[row] =	LCD->palete[(LCD->buffer8[index / 2]) & 0x0F]; //4 bit
-			} else {
-				line_buffer0[row] = LCD->palete[(LCD->buffer8[index / 2]) >> 4]; //4 bit
-			}
-			index++;
-		}
-
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer0, LCD->TFT_WIDTH);
-		while(DMA_TX_Complete == 0){__NOP();};
-		DMA_TX_Complete = 0;
-	}
-
-	SPI.Spi16to8(); //8bit mode
-	if (LCD->GPIO_CS != NULL) {
-		CS_1;
-	}
-
-}
+// Общие буферы линии для DMA-обновлений (вместо VLA на стеке).
+// Функции DMA-обновления блокирующие и не реентерабельные, поэтому совместное использование безопасно.
+#ifndef TFT_DMA_LINE_BUF_MAX
+#define TFT_DMA_LINE_BUF_MAX 512
+#endif
+static uint16_t DMA_line_buffer0[TFT_DMA_LINE_BUF_MAX];
+static uint16_t DMA_line_buffer1[TFT_DMA_LINE_BUF_MAX];
 
 void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 
@@ -473,8 +278,9 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 
 	needUpdate = 0;
 
-	uint16_t line_buffer0[LCD->TFT_WIDTH];
-	uint16_t line_buffer1[LCD->TFT_WIDTH];
+	if (LCD->TFT_WIDTH > TFT_DMA_LINE_BUF_MAX) return; //Экран шире буфера линии
+	uint16_t *line_buffer0 = DMA_line_buffer0;
+	uint16_t *line_buffer1 = DMA_line_buffer1;
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_0;
@@ -561,8 +367,9 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 
 	needUpdate = 0;
 
-	uint16_t line_buffer0[LCD->TFT_WIDTH];
-	uint16_t line_buffer1[LCD->TFT_WIDTH];
+	if (LCD->TFT_WIDTH > TFT_DMA_LINE_BUF_MAX) return; //Экран шире буфера линии
+	uint16_t *line_buffer0 = DMA_line_buffer0;
+	uint16_t *line_buffer1 = DMA_line_buffer1;
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_0;
@@ -632,15 +439,15 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 
 }
 
-extern uint16_t LCD_Buffer16[240 * 240];
 void TFT_Driver::ST7789_UpdateDMA16bitV2(void) {
 
 	if (blockUpdate) return;
 
 	    needUpdate = 0;
 
-		uint16_t line_buffer0[LCD->TFT_WIDTH];
-		uint16_t line_buffer1[LCD->TFT_WIDTH];
+		if (LCD->TFT_WIDTH > TFT_DMA_LINE_BUF_MAX) return; //Экран шире буфера линии
+		uint16_t *line_buffer0 = DMA_line_buffer0;
+		uint16_t *line_buffer1 = DMA_line_buffer1;
 
 		if (LCD->GPIO_CS != NULL) {
 			CS_0;
@@ -778,17 +585,24 @@ void TFT_Driver::ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes)
 }
 
 
+//Кольцевое DMA-обновление: непрерывный поток фреймбуфера на экран.
+//Требует, чтобы к hspi был привязан TX DMA (CubeMX: SPI TX DMA Enable).
 void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 {
+	SPI_TypeDef *spi = LCD->hspi->Instance;
+	DMA_Stream_TypeDef *dma;
 
-	DMA2_Stream3->CR &= ~DMA_SxCR_EN;     //Отключаем DMA
-    while( !(SPI1->SR & SPI_SR_TXE));	  //Ждем окончания передачи по SPI
-	DMA2_Stream3->NDTR = 0;               //Сброс счетчика DMA
-	SPI1->CR1 &= ~SPI_CR1_SPE;            //Спокойно отключаем SPI
-	SPI1->CR2  &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
-	SPI1->CR1 &= ~SPI_CR1_DFF;            //8bit mode
-	SPI1->CR1 |= SPI_CR1_SPE;             //Включаем для работы в обычном режиме
+	if (LCD->hspi->hdmatx == NULL) return; //TX DMA не привязан к SPI
+	dma = LCD->hspi->hdmatx->Instance;
 
+	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA
+	while (!(spi->SR & SPI_SR_TXE));    //Ждем окончания передачи по SPI
+	while (spi->SR & SPI_SR_BSY);
+	dma->NDTR = 0;                      //Сброс счетчика DMA
+	spi->CR1 &= ~SPI_CR1_SPE;           //Спокойно отключаем SPI
+	spi->CR2 &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
+	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
+	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
 
 	//int32_t i = 0;
 	uint8_t HI;
@@ -808,37 +622,39 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 	SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
 	SPI.SendCmd(0x2C); //Memory write
 
-//	
-//	while( !(SPI1->SR & SPI_SR_TXE));       //Ждем окончания передачи по SPI
-//	SPI1->CR1 &= ~SPI_CR1_SPE;              //Спокойно отключаем SPI
-//	SPI1->CR1 |= SPI_CR1_DFF;               //16bit mode
-//	
 	DATA;
 
 	SPI.Spi8to16();
 
-	DMA2_Stream3->CR   &= ~DMA_SxCR_EN; // DMA
-	DMA2_Stream3->NDTR  = 240*135;
-	DMA2_Stream3->PAR   = 0x4001300C;//SPI
-	DMA2_Stream3->M0AR  = (uint32_t)&LCD->buffer16[0];
-	DMA2_Stream3->CR   |=  DMA_SxCR_CIRC;      //Кольцевой режим
-	DMA2_Stream3->CR   |=  DMA_SxCR_EN;        //Включаем DMA
+	dma->CR  &= ~DMA_SxCR_EN;                          // DMA
+	dma->NDTR = LCD->TFT_WIDTH * LCD->TFT_HEIGHT;      // Весь фреймбуфер
+	dma->PAR  = (uint32_t)&spi->DR;                    // SPI->DR
+	dma->M0AR = (uint32_t)&LCD->buffer16[0];
+	dma->CR  |=  DMA_SxCR_CIRC;      //Кольцевой режим
+	dma->CR  |=  DMA_SxCR_EN;        //Включаем DMA
 
-	SPI1->CR2 |= SPI_CR2_TXDMAEN;              //SPI на DMA
-	SPI1->CR1 |= SPI_CR1_SPE;                  //Включаем SPI для работы в DMA
+	spi->CR2 |= SPI_CR2_TXDMAEN;     //SPI на DMA
+	spi->CR1 |= SPI_CR1_SPE;         //Включаем SPI для работы в DMA
 }
 
 void TFT_Driver::ST7789_Update_DMA_Cicle_Off(void)
 {
-	DMA2_Stream3->CR &= ~DMA_SxCR_EN;     //Отключаем DMA
-    while( !(SPI1->SR & SPI_SR_TXE));	  //Ждем окончания передачи по SPI
-	DMA2_Stream3->NDTR = 0;               //Сброс счетчика DMA
-	DMA2_Stream3->CR &= ~DMA_SxCR_CIRC;   //Выкл Кольцевой режим
+	SPI_TypeDef *spi = LCD->hspi->Instance;
+	DMA_Stream_TypeDef *dma;
 
-	SPI1->CR1 &= ~SPI_CR1_SPE;            //Спокойно отключаем SPI
-	SPI1->CR2 &= ~SPI_CR2_TXDMAEN;        //Отвязываем от DMA
-	SPI1->CR1 &= ~SPI_CR1_DFF;            //8bit mode
-	SPI1->CR1 |= SPI_CR1_SPE;             //Включаем для работы в обычном режиме
+	if (LCD->hspi->hdmatx == NULL) return; //TX DMA не привязан к SPI
+	dma = LCD->hspi->hdmatx->Instance;
+
+	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA
+	while (!(spi->SR & SPI_SR_TXE));    //Ждем окончания передачи по SPI
+	while (spi->SR & SPI_SR_BSY);
+	dma->NDTR = 0;                      //Сброс счетчика DMA
+	dma->CR &= ~DMA_SxCR_CIRC;          //Выкл Кольцевой режим
+
+	spi->CR1 &= ~SPI_CR1_SPE;           //Спокойно отключаем SPI
+	spi->CR2 &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
+	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
+	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
 }
 
 #endif /* TFT_Driver_ST7789 */

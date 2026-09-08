@@ -12,7 +12,7 @@
 #elif defined(TIMBER_SPI)
     #include "spi.h"
 #elif defined(TIMBER_RTT)
-    #include "rtt.h"
+#include "SEGGER_RTT.h"
 #else
 
 #endif
@@ -21,11 +21,12 @@
 #define COLOR_ERROR   "\33[38;05;9m"
 #define COLOR_RESET   "\33[0m"
 
-class classLog {
+
+
+class Timber {
 public:
 
-
-/*---- init ----*/
+	/*---- init ----*/
 #if defined(TIMBER_UART)
 	void init(UART_HandleTypeDef *_huart) {  huart = _huart;  }
 #elif defined(TIMBER_USB)
@@ -33,11 +34,13 @@ public:
 #elif defined(TIMBER_SPI)
 	void init() {	 }
 #elif defined(TIMBER_RTT)
-	void init() {	 }
+	void init() {
+		SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+	}
+
 #else
 	void init() {	 }
 #endif
-
 
 	void clear(void) {
 		print("\33[1m\n");
@@ -53,7 +56,8 @@ public:
 
 	void resetln(void) {
 		print("\33[0m\n");
-	};
+	}
+	;
 
 	void setBold(void);
 	void setItalic(void);
@@ -63,25 +67,54 @@ public:
 
 	//---------------------------------------------------
 	void print(char const *format) {
-		HAL_UART_Transmit(huart, (uint8_t*) format, strlen(format), 1000);
+#if defined(TIMBER_UART)
+		HAL_UART_Transmit(huart, (uint8_t*) format, strlen(str), 1000);
+#endif
+
+#if defined(TIMBER_RTT)
+		SEGGER_RTT_WriteString(0, format);
+#endif
 	}
 
 	template<typename ... Args> void print(char const *const format,
 			Args const &... args) noexcept {
 		sprintf(str, format, args ...);
+
+#if defined(TIMBER_UART)
 		HAL_UART_Transmit(huart, (uint8_t*) str, strlen(str), 1000);
+#endif
+
+#if defined(TIMBER_RTT)
+		SEGGER_RTT_WriteString(0, str);
+#endif
+
 	}
 
 	template<typename ... Args>
 	void println(char const *const format, Args const &... args) noexcept {
 		sprintf(str, format, args ...);
 		strcat(str, "\n");
+
+#if defined(TIMBER_UART)
 		HAL_UART_Transmit(huart, (uint8_t*) str, strlen(str), 1000);
+#endif
+
+#if defined(TIMBER_RTT)
+		SEGGER_RTT_WriteString(0, str);
+#endif
 
 	}
 
 	void println(char const *format) {
-		HAL_UART_Transmit(huart, (uint8_t*) format, strlen(format), 1000);
+
+#if defined(TIMBER_UART)
+		HAL_UART_Transmit(huart, (uint8_t*) format, strlen(str), 1000);
+#endif
+
+#if defined(TIMBER_RTT)
+		SEGGER_RTT_WriteString(0, format);
+#endif
+
 	}
 	//---------------------------------------------------
 
@@ -115,10 +148,6 @@ public:
 		colorStringln(10, str);
 	}
 
-	char str[256];
-
-	UART_HandleTypeDef *huart;
-
 	void w(char const *const format) {
 		colorStringln(11, format);
 	}
@@ -131,5 +160,16 @@ public:
 	void s(char const *const format) {
 		colorStringln(10, format);
 	}
+
+private:
+#if defined(TIMBER_UART)
+	UART_HandleTypeDef *huart;
+#endif
+
+	char str[256];
+
 };
+
+extern Timber timber;
+
 #endif /* UTILS_LOGUART_H_ */

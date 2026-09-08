@@ -75,6 +75,12 @@ typedef struct {
 	uint8_t  DY_270;
 } _ROTATE_DELTA;
 
+//Совместимость: старое имя макроса содержало кириллическую "С".
+//Новое каноническое имя - TFT_USE_I2C (латиница).
+#if defined(TFT_USE_I2С)
+  #define TFT_USE_I2C
+#endif
+
 //LCD_DRIVER
 typedef enum {
 	ST7735 = 0, /* (0) */
@@ -100,10 +106,10 @@ typedef struct {
 	uint32_t *notUse;
 #endif
 
-#ifdef TFT_USE_I2С
+#ifdef TFT_USE_I2C
 	I2C_HandleTypeDef *hi2c;
 #else
-	  uint32_t * notUse;
+	  uint32_t * notUse2;
     #endif
 
 	uint8_t I2C_Adress;

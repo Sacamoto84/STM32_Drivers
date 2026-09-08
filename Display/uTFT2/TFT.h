@@ -8,10 +8,13 @@
 
 #ifdef __cplusplus
 
-#define FontId0 (u8 *)(tft.getResAdressFontID(0))
-#define FontId1 (u8 *)(tft.getResAdressFontID(1))
-#define FontId2 (u8 *)(tft.getResAdressFontID(2))
-#define FontId3 (u8 *)(tft.getResAdressFontID(3))
+//Адрес шрифта из ресурсов (см. Resource/resource.cpp)
+uint8_t *getResAdressFontID(uint32_t id);
+
+#define FontId0 (u8 *)(getResAdressFontID(0))
+#define FontId1 (u8 *)(getResAdressFontID(1))
+#define FontId2 (u8 *)(getResAdressFontID(2))
+#define FontId3 (u8 *)(getResAdressFontID(3))
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 #define CREATE_SPRITE16(name, x , y) u16 name##_buffer16[x * y + 4];\
@@ -38,6 +41,19 @@ public:
 	////////////////////////////////////////////////////////////////////////////////////////////
 	void init(TFT_LCD_t *_LCD) {
 		LCD = _LCD;
+
+		//Детерминированное начальное состояние
+		_xPivot = 0;
+		_yPivot = 0;
+		LineMoveX = 0;
+		LineMoveY = 0;
+		uTFT.CurrentX = 0;
+		uTFT.CurrentY = 0;
+		uTFT.Color = 0xFFFF;
+		uTFT.BColor = 0x0000;
+		uTFT.Inverted = 0;
+		uTFT.GetColor = 0;
+
 		driver.init(_LCD);
 	}
 
@@ -59,13 +75,9 @@ public:
 	u16 GetPixel1  (i32 x, i32 y);
 	u16 GetPixel16 (i32 x, i32 y);
 
-	void SetColorToPallete(u8 index, u16 color);
-
-
-
 	//Установить цвет в ячейку палитры
 	void setColorToPalete(int index, u16 c) {
-		if (index > 255)
+		if (index < 0 || index > 255)
 			return;
 		LCD->palete[index] = c;
 	}
@@ -176,8 +188,6 @@ private:
 
 	int16_t LineMoveX; //Для LineTo
 	int16_t LineMoveY;
-
-private:
 
 };
 

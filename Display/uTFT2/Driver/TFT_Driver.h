@@ -21,7 +21,10 @@ public:
 	  TFT_SPI SPI;
     #endif
 
-	uint32_t DMA_TX_Complete; //����� ������ ��������� DMA �������� ������ ��� �����
+	//Флаг завершения DMA-передачи. Пользователь ОБЯЗАН определить HAL_SPI_TxCpltCallback
+	//и выставлять в нем DMA_TX_Complete = 1 (для активного hspi),
+	//иначе функции ST7789_UpdateDMA*V2/V3 зависнут в ожидании.
+	volatile uint32_t DMA_TX_Complete;
 	uint32_t blockUpdate;
 	uint32_t needUpdate;
 
@@ -32,6 +35,9 @@ public:
 
 #if defined(TFT_DRIVER_SSD1306)
 		case SSD1306:
+#ifdef TFT_USE_SPI
+			SPI.init(_LCD);
+#endif
 			SSD1306_Init();
 			break;
 #endif
@@ -50,22 +56,10 @@ public:
 			  break;	 // 2 - ILI9225
 #endif
 
-#if defined(TFT_DRIVER_ST7735)
-		    case ST7735:
-			  ST7735_init();
-			  break;
-#endif
-
-#if defined(TFT_DRIVER_ST7735S)
-			case ST7735S:
-			  ST7735S_init();
-			  break;
-#endif
-
-		default:
-			break;
-		}
+	default:
+		break;
 	}
+}
 
 	void Update(void) {
 		switch (LCD->LCD_Driver) {
@@ -85,18 +79,6 @@ public:
 #if defined(TFT_DRIVER_ST7789)
 		case ST7789:
 			ST7789_Update();
-			break; //1-ST7789
-#endif
-
-#if defined(TFT_DRIVER_ST7735)
-		case ST7735:
-			ST7735_Update(); //-V1037
-			break; //1-ST7789
-#endif
-
-#if defined(TFT_DRIVER_ST7735S)
-		case ST7735S:
-			ST7735_Update();
 			break; //1-ST7789
 #endif
 
@@ -160,7 +142,6 @@ public:
 	void ST77XX_Update_MADCTL(void);
 	void ST7789_Update_Window(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
 
-	void ST7789_UpdateDMA4bit(void);
 	void ST7789_UpdateDMA4bitV2(void);
 	void ST7789_UpdateDMA8bitV2(void);
 	void ST7789_UpdateDMA16bitV2(void);
@@ -169,15 +150,6 @@ public:
 	void ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes);
 	void ST7789_Update_DMA_Cicle_On(void);
 	void ST7789_Update_DMA_Cicle_Off(void);
-#endif
-
-#if defined(TFT_DRIVER_ST7735)
-	void ST7735_init();
-	void ST7735_Update();
-#endif
-
-#if defined(TFT_DRIVER_ST7735S)
-	void ST7735S_init();
 #endif
 
 #if defined(TFT_DRIVER_LCD_USB)

@@ -26,6 +26,11 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 	int16_t temp;
 	int16_t Height;
 
+	//Символы до пробела не входят в таблицы шрифта (отрицательный индекс)
+	if (ch < 32) {
+		return;
+	}
+
 	if (ch < 0xC0) //ENG
 			{
 
@@ -80,26 +85,42 @@ void FontMicroPuts(TFT * tft, char *str, uint8_t dx, uint8_t transparrent) {
 //Определение длинны строки в пикселях по типу текущего шрифта
 uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 {
-	const uint8_t *peng = &uFont->dataEng[0]; //Начало массива символов
 	const uint8_t *p;
 
-	uint8_t lengs = 0;
-	uint16_t lenSum;
+	uint16_t lenSum = 0;
+	uint8_t lengs = strlen(str); //Количество символов
 
-	lenSum = 0;
-	//Количество символов в строке
-	lengs = strlen(str); //Количество символов
+	if (uFont->dataEng == NULL)
+		return 0;
 
 	//Перебираем каждый символ
 	for (uint8_t i = 0; i < lengs; i++) {
-		p = peng;
-		p += (str[i] - 32) * ((uFont->FontHeightEng) / 8 + 1)
-				* uFont->FontWidthEng + (str[i] - 32);
+		uint8_t ch = (uint8_t)str[i];
+
+		//Символ вне таблиц шрифта - ширина одного столбца
+		if (ch < 32) {
+			lenSum += 1;
+			continue;
+		}
+
+		if (ch < 0xC0) { //ENG
+			p = uFont->dataEng;
+			p += (ch - 32) * ((uFont->FontHeightEng) / 8 + 1)
+					* uFont->FontWidthEng + (ch - 32);
+		} else { //RUS
+			if (uFont->dataRus == NULL) {
+				lenSum += 1;
+				continue;
+			}
+			p = uFont->dataRus;
+			p += (ch - 0xC0) * ((uFont->FontHeightRus) / 8 + 1)
+					* uFont->FontWidthRus + (ch - 0xC0);
+		}
 
 		lenSum += *p + 1;
 
 	}
-	lenSum -= 1;
+	if (lenSum) lenSum -= 1;
 
 	return lenSum;
 }

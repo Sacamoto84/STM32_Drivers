@@ -4,106 +4,9 @@
 
 #include "../TFT.h"
 
-//extern uTFT_t uTFT;
-
-//макс. размер буфера для чтения
-#define BUFSIZE 32
-
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef signed long long s64;
-typedef unsigned long long u64;
-
-//u8 *CP1251 = cp1251_cyrillic_table;
-//u16 *UTF8 = utf8_cyrillic_table;
-
-//кириллическая таблица CP1251
-//
-const u8 cp1251_cyrillic_table[] = {
-
-        0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xA8, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB,
-		0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7,
-		0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
-
-		0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xB8, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA,
-		0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6,
-		0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF
-
-};
-
-//кириллическая таблица UTF8
-//
-const u16 utf8_cyrillic_table[] = {
-
-        0xD090, 0xD091, 0xD092, 0xD093, 0xD094, 0xD095, 0xD081, 0xD096, 0xD097, 0xD098,
-		0xD099, 0xD09A, 0xD09B, 0xD09C, 0xD09D, 0xD09E, 0xD09F, 0xD0A0, 0xD0A1,
-		0xD0A2, 0xD0A3, 0xD0A4, 0xD0A5, 0xD0A6, 0xD0A7, 0xD0A8, 0xD0A9, 0xD0AA,
-		0xD0AB, 0xD0AC, 0xD0AD, 0xD0AE, 0xD0AF,
-
-		0xD0B0, 0xD0B1, 0xD0B2, 0xD0B3, 0xD0B4, 0xD0B5, 0xD191, 0xD0B6, 0xD0B7,
-		0xD0B8, 0xD0B9, 0xD0BA, 0xD0BB, 0xD0BC, 0xD0BD, 0xD0BE, 0xD0BF, 0xD180,
-		0xD181, 0xD182, 0xD183, 0xD184, 0xD185, 0xD186, 0xD187, 0xD188, 0xD189,
-		0xD18A, 0xD18B, 0xD18C, 0xD18D, 0xD18E, 0xD18F,
-
-};
-
 void Font_Smooth_unloadFont(void);
+static int  Font_Smooth_loadMetrics(uint16_t gCount);
 
-//буффер для хранения данных
-u8 utf8_buffer[BUFSIZE + BUFSIZE];
-
-//общее число символов, предназначенных для записи в файл перед каждым очередным чтением исходного файла
-
-u64 total_utf8_symbols = BUFSIZE;
-
-//
-u8* is_cyrillic(u8 code) {
-
-	u8 i;
-	u8 *pos = NULL;
-
-	if (code != 0xA8 && code != 0xB8 && (code < 0xC0 || code > 0xFF))
-		return pos = NULL;
-
-	for (i = 0;	i < sizeof(cp1251_cyrillic_table) / sizeof(cp1251_cyrillic_table[0]);++i)
-
-		if (code == cp1251_cyrillic_table[i])
-		{
-			pos = (u8*)&cp1251_cyrillic_table[i];//?
-		}
-
-	return pos;
-}
-
-void cp1251_to_utf8(u8 *cp1251_pointer, u8 *to_replace) {
-
-	u8 i;
-
-//так определяем индекс cp1251-кода
-	for (i = 0; *cp1251_pointer != 0xC0; --cp1251_pointer, ++i)
-		;
-
-//вычленяем левый и правый байты utf8-кода, ибо буфер для записи имеет тип элементов u8
-
-	//u8 utf8_left_code  = (utf8_cyrillic_table >> 8);
-	//u8 utf8_right_code = (utf8_cyrillic_table & 0x00ff);
-
-	//*to_replace = utf8_left_code;
-	//*(to_replace + 1) = utf8_right_code;
-
-}
-
-void replace_array(u8 *array, int pos) {
-
-	int i;
-
-	for (i = total_utf8_symbols - 1; i >= pos; --i)
-		*(array + i + 1) = *(array + i);
-
-}
 //////////////////////////////////////// SMOOTH ////////////////////////////////////////
 // This is for the whole font
 typedef struct {
@@ -116,12 +19,9 @@ typedef struct {
 	uint16_t maxDescent; // Maximum descent found in font
 } fontMetrics;
 
-void Font_Smooth_loadMetrics(uint16_t gCount);
-uint16_t alphaBlend(uint8_t alpha, uint16_t fgc, uint16_t bgc);
-
 /*
  The vlw font format does not appear to be documented anywhere, so some reverse
- engineering has been applied!
+  engineering has been applied!
 
  Header of vlw file comprises 6 uint32_t parameters (24 bytes total):
  1. The gCount (number of character glyphs)
@@ -220,11 +120,15 @@ void Font_Smooth_Load(const unsigned char *massiv) {
 	gFont.yAdvance = gFont.ascent + gFont.descent;
 	gFont.spaceWidth = gFont.yAdvance / 4;  // Guess at space width
 
-	Font_Smooth_loadMetrics(gFont.gCount);
+	if (!Font_Smooth_loadMetrics(gFont.gCount)) {
+		//Не хватило памяти - выгружаем шрифт целиком
+		Font_Smooth_unloadFont();
+		gFont.gCount = 0;
+	}
 
 }
 
-void Font_Smooth_loadMetrics(uint16_t gCount) {
+static int Font_Smooth_loadMetrics(uint16_t gCount) {
 	uint32_t headerPtr = 24;
 	uint32_t bitmapPtr = 24 + gCount * 28;
 
@@ -235,6 +139,11 @@ void Font_Smooth_loadMetrics(uint16_t gCount) {
 	gdY = (int16_t*) malloc(gCount * 2); // offset from bitmap top edge from lowest point in any character
 	gdX = (int8_t*) malloc(gCount); // offset for bitmap left edge relative to cursor X
 	gBitmap = (uint32_t*) malloc(gCount * 4); // seek pointer to glyph bitmap in the file
+
+	//Проверка выделения памяти
+	if (gUnicode == NULL || gHeight == NULL || gWidth == NULL ||
+		gxAdvance == NULL || gdY == NULL || gdX == NULL || gBitmap == NULL)
+		return 0;
 
 	uint16_t gNum = 0;
 
@@ -264,6 +173,7 @@ void Font_Smooth_loadMetrics(uint16_t gCount) {
 	}
 	gFont.yAdvance = gFont.maxAscent + gFont.maxDescent;
 	gFont.spaceWidth = (gFont.ascent + gFont.descent) * 2 / 7; // Guess at space width
+	return 1;
 }
 
 void Font_Smooth_unloadFont(void) {
@@ -306,16 +216,20 @@ void Font_Smooth_unloadFont(void) {
 
 bool Font_Smooth_getUnicodeIndex(uint16_t unicode, uint16_t *index) {
 
-    if (unicode == 0xD081) unicode = 0x401; //Ё
+    if (unicode == 0xD081) {        //Ё (UTF-8 пара D0 81)
+        unicode = 0x401;
+    } else if (unicode == 0xD181) { //ё (UTF-8 пара D1 81)
+        unicode = 0x451;
+    } else {
+		if (unicode == 0xA8) unicode = 0x401; //Ё (cp1251)
+		else if (unicode == 0xB8) unicode = 0x451; //ё (cp1251)
+		else if (unicode >= 0xD090) unicode -= 0xCC80;
 
-	if (unicode >= 0xD090)
-		unicode -= 0xCC80;
+		if ((unicode >= 192) && (unicode < 256))
+			unicode = unicode + 1040 - 192;
 
-
-	if ((unicode >= 192) && (unicode < 256))
-		unicode = unicode + 1040 - 192;
-
-	if (unicode > 0x44F) unicode -= 0xC0; //Глюк Эклипса
+		if (unicode > 0x44F) unicode -= 0xC0; //Глюк Эклипса
+    }
 
 	for (uint16_t i = 0; i < gFont.gCount; i++) {
 		if (gUnicode[i] == unicode) {
@@ -343,7 +257,7 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 		if (code == '\n') {
 			tft->uTFT.CurrentX = 0;
 			tft->uTFT.CurrentY += gFont.yAdvance;
-			if (tft->uTFT.CurrentY >= tft->LCD->TFT_WIDTH)
+			if (tft->uTFT.CurrentY >= tft->LCD->TFT_HEIGHT)
 				tft->uTFT.CurrentY = 0;
 			return;
 		}
@@ -409,9 +323,9 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 
 
 #ifdef USE_NOTSAVE_FONT
-						tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH] = alphaBlend(pixel, fg, bg);
+						tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH] = tft->alphaBlend(pixel, fg, bg);
 #else
-						tft->SetPixel(x + cx, y + cy, alphaBlend(pixel, fg, bg));
+						tft->SetPixel(x + cx, y + cy, tft->alphaBlend(pixel, fg, bg));
 #endif
 
 					} else {
@@ -441,25 +355,6 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 		tft->uTFT.CurrentX += gFont.spaceWidth + 1;
 	}
 
-}
-
-uint16_t alphaBlend(uint8_t alpha, uint16_t fgc, uint16_t bgc) {
-	// For speed use fixed point maths and rounding to permit a power of 2 division
-	uint16_t fgR = ((fgc >> 10) & 0x3E) + 1;
-	uint16_t fgG = ((fgc >> 4) & 0x7E) + 1;
-	uint16_t fgB = ((fgc << 1) & 0x3E) + 1;
-
-	uint16_t bgR = ((bgc >> 10) & 0x3E) + 1;
-	uint16_t bgG = ((bgc >> 4) & 0x7E) + 1;
-	uint16_t bgB = ((bgc << 1) & 0x3E) + 1;
-
-	// Shift right 1 to drop rounding bit and shift right 8 to divide by 256
-	uint16_t r = (((fgR * alpha) + (bgR * (255 - alpha))) >> 9);
-	uint16_t g = (((fgG * alpha) + (bgG * (255 - alpha))) >> 9);
-	uint16_t b = (((fgB * alpha) + (bgB * (255 - alpha))) >> 9);
-
-	// Combine RGB565 colours into 16 bits
-	return (r << 11) | (g << 5) | (b << 0);
 }
 
 //Тест вывод на экран всего алфавита
@@ -500,17 +395,14 @@ void Font_Smooth_drawStr(TFT * tft, const char *str) {
 	while (*str != 0) {
 		uint16_t code = 0;
 
-		if (*str >= 0xD0){
-			code  = (*str++)<<8;
-			code |= (*str);}
+		if ((uint8_t)*str >= 0xD0){
+			code  = ((uint8_t)*str++)<<8;
+			code |= (uint8_t)*str;}
 		else
-			code = *str;
+			code = (uint8_t)*str;
 
 		Font_Smooth_drawGlyph(tft, code);
 		str++;
-		//uTFT.CurrentX +=  gFont.spaceWidth ;
-		//cursorX + gdX[i] + gWidth[i]
-		//cursorX + gdX[i] + gWidth[i]
 	}
 
 }
@@ -521,17 +413,14 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str) {
 	while (*str != 0) {
 		uint16_t code = 0;
 
-		if (*str >= 0xD0){
-			code  = (*str++)<<8;
-			code |= (*str);}
+		if ((uint8_t)*str >= 0xD0){
+			code  = ((uint8_t)*str++)<<8;
+			code |= (uint8_t)*str;}
 		else
-			code = *str;
+			code = (uint8_t)*str;
 
 		Font_Smooth_drawGlyph(tft, code);
 		str++;
-		//uTFT.CurrentX +=  gFont.spaceWidth ;
-		//cursorX + gdX[i] + gWidth[i]
-		//cursorX + gdX[i] + gWidth[i]
 	}
 
 }
@@ -544,11 +433,11 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str, uint16_t colo
 	while (*str != 0) {
 		uint16_t code = 0;
 
-		if (*str >= 0xD0){
-			code  = (*str++)<<8;
-			code |= (*str);}
+		if ((uint8_t)*str >= 0xD0){
+			code  = ((uint8_t)*str++)<<8;
+			code |= (uint8_t)*str;}
 		else
-			code = *str;
+			code = (uint8_t)*str;
 
 		Font_Smooth_drawGlyph(tft, code);
 		str++;
@@ -563,7 +452,7 @@ void Font_Smooth_drawStr1251(TFT * tft ,int x, int y, const char *str, uint16_t 
 
 	while (*str != 0) {
 		uint16_t code = 0;
-		code = *str;
+		code = (uint8_t)*str;
 		Font_Smooth_drawGlyph(tft, code);
 		str++;
 	}

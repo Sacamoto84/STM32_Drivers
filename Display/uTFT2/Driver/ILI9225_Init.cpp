@@ -3,6 +3,7 @@
 
 #if defined(TFT_DRIVER_ILI9225)
 
+#include "TFT_Driver.h"
 #include "ILI9225.h"
 
 #define TFTLCD_DELAY 0xFFFF
@@ -69,7 +70,7 @@ const uint16_t ILI9225_regValues[] = {
 	ILI9225_DISP_CTRL1, 0x1017,
 };
 
-void TFT::ILI9225_init_table16(const uint16_t *table, int16_t size)
+void TFT_Driver::ILI9225_init_table16(const uint16_t *table, int16_t size)
 {
       const uint16_t  *p = table;
 	  static uint16_t  cmd;
@@ -91,7 +92,7 @@ void TFT::ILI9225_init_table16(const uint16_t *table, int16_t size)
     }
 }
 
-void TFT::ILI9225_init(void)
+void TFT_Driver::ILI9225_init(void)
 {
   //Перевод на 16 bit формат
   //LCD->hspi->Instance->CR1 |=  SPI_CR1_SPE; //Включаем SPI

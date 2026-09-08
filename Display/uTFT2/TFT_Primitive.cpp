@@ -91,9 +91,16 @@ void TFT::Line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t c) {
 
 void TFT::LineV(int32_t X, int32_t Y1, int32_t Y2, uint16_t color) {
 
-	if ((LCD->Bit) == 1) {
-		int32_t i;
+	//Клиппинг
+	if (X < 0 || X >= LCD->TFT_WIDTH) return;
+	if (Y1 > Y2) { int32_t t = Y1; Y1 = Y2; Y2 = t; }
+	if (Y1 < 0) Y1 = 0;
+	if (Y2 >= LCD->TFT_HEIGHT) Y2 = LCD->TFT_HEIGHT - 1;
+	if (Y1 > Y2) return;
 
+	int32_t i;
+
+	if ((LCD->Bit) == 1) {
 		if (color == 1) {
 			for (i = Y1; i <= Y2; i++)
 				LCD->buffer8[X + (i / 8) * LCD->TFT_WIDTH] |= 1 << (i % 8);
@@ -101,42 +108,24 @@ void TFT::LineV(int32_t X, int32_t Y1, int32_t Y2, uint16_t color) {
 			for (i = Y1; i <= Y2; i++)
 				LCD->buffer8[X + (i / 8) * LCD->TFT_WIDTH] &= ~(1 << (i % 8));
 		}
+		return;
 	}
 
 	if ((LCD->Bit) == 4) {
-		int32_t i;
-		for (i = Y1; i <= Y2; i++) //uTFT_SetPixel(X, i, color);
-				{
+		for (i = Y1; i <= Y2; i++)
 			SetPixel(X, i, color);
-		}
+		return;
 	}
 
 	if (LCD->Bit == 16) {
-		if (Y2 >= LCD->TFT_HEIGHT)
-			Y2 = LCD->TFT_HEIGHT - 1;
-		if (X >= LCD->TFT_WIDTH)
-			return;
-
-		int32_t i;
-		for (i = Y1; i <= Y2; i++) //uTFT_SetPixel(X, i, color);
-				{
+		for (i = Y1; i <= Y2; i++)
 			LCD->buffer16[X + i * LCD->TFT_WIDTH] = color;
-		}
 		return;
 	}
 
 	if (LCD->Bit == 8) {
-
-		if (Y2 >= LCD->TFT_HEIGHT)
-			Y2 = LCD->TFT_HEIGHT - 1;
-
-		if (X >= LCD->TFT_WIDTH)
-			return;
-
-		for (int32_t i = Y1; i <= Y2; i++) //uTFT_SetPixel(X, i, color);
-				{
+		for (i = Y1; i <= Y2; i++)
 			LCD->buffer8[X + i * LCD->TFT_WIDTH] = color;
-		}
 	}
 
 }
@@ -145,8 +134,12 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 
 	int32_t i;
 
+	//Клиппинг
+	if (Y < 0 || Y >= LCD->TFT_HEIGHT) return;
+	if (X1 > X2) { int32_t t = X1; X1 = X2; X2 = t; }
+	if (X1 < 0) X1 = 0;
 	if (X2 >= LCD->TFT_WIDTH) X2 = LCD->TFT_WIDTH - 1;
-	if (Y >= LCD->TFT_HEIGHT) return;
+	if (X1 > X2) return;
 
 	if ((LCD->Bit) == 1) {
 		if (color == 1) {
@@ -160,7 +153,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	}
 
 	if ((LCD->Bit) == 16) {
-		for (i = X1; i <= X2; i++) //uTFT_SetPixel(X, i, color);
+		for (i = X1; i <= X2; i++)
 		{
 			LCD->buffer16[i + Y * LCD->TFT_WIDTH] = color;
 		}
@@ -168,16 +161,16 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	}
 
 	if ((LCD->Bit) == 4) {
-		for (i = X1; i <= X2; i++) //uTFT_SetPixel(X, i, color);
-				{
+		for (i = X1; i <= X2; i++)
+		{
 			if (i % 2 == 0) {
 				LCD->buffer8[i / 2 + Y * ((LCD->TFT_WIDTH) / 2)] =
 						(LCD->buffer8[i / 2 + Y * ((LCD->TFT_WIDTH) / 2)]
-								& (0x0F)) | (color << 4);
+								& (0x0F)) | ((color & 0x0F) << 4);
 			} else {
 				LCD->buffer8[i / 2 + Y * ((LCD->TFT_WIDTH) / 2)] =
 						(LCD->buffer8[i / 2 + Y * ((LCD->TFT_WIDTH) / 2)]
-								& (0xF0)) | color;
+								& (0xF0)) | (color & 0x0F);
 			}
 		}
 		return;
@@ -185,7 +178,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 
 	if ((LCD->Bit) == 8) {
 		int YY = Y * LCD->TFT_WIDTH;
-		for (int32_t i = X1; i <= X2; i++)
+		for (i = X1; i <= X2; i++)
 			LCD->buffer8[i + YY] = color;
 		return;
 	}
@@ -196,13 +189,17 @@ void TFT::LineH16(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 
 	int32_t i;
 
+	//Клиппинг
+	if (Y < 0 || Y >= LCD->TFT_HEIGHT) return;
+	if (X1 > X2) { int32_t t = X1; X1 = X2; X2 = t; }
+	if (X1 < 0) X1 = 0;
 	if (X2 >= LCD->TFT_WIDTH) X2 = LCD->TFT_WIDTH - 1;
-	if (Y >= LCD->TFT_HEIGHT) return;
+	if (X1 > X2) return;
 
-		for (i = X1; i <= X2; i++) //uTFT_SetPixel(X, i, color);
-		{
-			LCD->buffer16[i + Y * LCD->TFT_WIDTH] = color;
-		}
+	for (i = X1; i <= X2; i++)
+	{
+		LCD->buffer16[i + Y * LCD->TFT_WIDTH] = color;
+	}
 
 }
 
@@ -226,63 +223,48 @@ void TFT::LineMoveXY(int32_t x, int32_t y) {
 }
 
 // ----- Rectagle ----
+//Рамка прямоугольника размером w x h пикселей
 void TFT::Rectangle(int32_t x, int32_t y, uint16_t w, uint16_t h, uint16_t c) {
 	/* Check input parameters */
+	if (w == 0 || h == 0) return;
 	if (x >= LCD->TFT_WIDTH || y >= LCD->TFT_HEIGHT) return;
 
-//	/* Check width and height */
-//	if ((x + w) >= LCD->TFT_WIDTH) {
-//		w = LCD->TFT_WIDTH - x;
-//	}
-//	if ((y + h) >= LCD->TFT_HEIGHT) {
-//		h = LCD->TFT_HEIGHT - y;
-//	}
-
 	/* Draw 4 lines */
-	LineH(y, x, x + w, c);
-	LineH(y + h, x, x + w, c);
+	LineH(y, x, x + w - 1, c);
+	LineH(y + h - 1, x, x + w - 1, c);
 
-	LineV(x, y, y + h, c);
-	LineV(x + w, y, y + h, c);
+	LineV(x, y, y + h - 1, c);
+	LineV(x + w - 1, y, y + h - 1, c);
 }
 
+//Заливка прямоугольника размером w x h пикселей
 void TFT::RectangleFilled(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 		uint16_t c) {
 	uint32_t i;
 
 	/* Check input parameters */
-	if (x >= LCD->TFT_WIDTH || y >= LCD->TFT_HEIGHT || w==0 || h==0 ) {
+	if (x >= LCD->TFT_WIDTH || y >= LCD->TFT_HEIGHT || w == 0 || h == 0) {
 		/* Return error */
 		return;
 	}
 
-	/* Check width and height */
-	if ((x + w) >= LCD->TFT_WIDTH) {
-		w = LCD->TFT_WIDTH - x;
-	}
-	if ((y + h) >= LCD->TFT_HEIGHT) {
-		h = LCD->TFT_HEIGHT - y;
-	}
-
 	if ((LCD->Bit) == 8) {
-		int X2 = x + w;
-		for (i = 0; i <= h; i++) {
-			int Y = y + i;
+		uint32_t X2 = (uint32_t)x + w - 1;
+		if (X2 >= (uint32_t)LCD->TFT_WIDTH) X2 = LCD->TFT_WIDTH - 1;
+		for (i = 0; i < h; i++) {
+			uint32_t Y = y + i;
+			if (Y >= (uint32_t)LCD->TFT_HEIGHT) break;
 			int YY = Y * LCD->TFT_WIDTH;
-			for (int32_t i = x; i <= X2; i++)
-				LCD->buffer8[i + YY] = c;
+			for (uint32_t ii = x; ii <= X2; ii++)
+				LCD->buffer8[ii + YY] = c;
 		}
 		return;
 	}
 
 	for (i = 0; i < h; i++) {
-		LineH(y + i, x, x + w, c); //124us
+		if ((uint32_t)(y + i) >= (uint32_t)LCD->TFT_HEIGHT) break;
+		LineH(y + i, x, x + w - 1, c);
 	}
-
-	/* Draw lines */
-////for (i = 0; i <= h; i++) {
-//	LineH(y + i, x, x + w, c); //124us
-//}
 }
 
 //void uTFT_DrawRectangle(uint16_t X1, uint16_t Y1, uint16_t X2, uint16_t Y2, uint16_t color)
@@ -293,17 +275,18 @@ void TFT::RectangleFilled(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 //  ST7735_VLine(X2,Y1,Y2,color);
 //}
 
+//Инверсия прямоугольника размером w x h пикселей
 void TFT::InvertRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-	for (uint8_t i = x; i <= x + w; i++)
-		for (uint16_t ii = y; ii <= y + h; ii++)
+	for (int32_t i = x; i < (int32_t)x + w; i++)
+		for (int32_t ii = y; ii < (int32_t)y + h; ii++)
 			SetPixel(i, ii, !GetPixel(i, ii));
 }
 
-//Р—Р°РјРµРЅР° С†РІРµС‚РѕРІ РІ РґР°РЅРЅРѕРј РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєРµ
+//Замена цветов в данном прямоугольнике размером w x h пикселей
 void TFT::ChangeColorRectangle(int32_t x, int32_t y, uint32_t w, int32_t h,
 		uint16_t sColor, uint16_t dColor) {
-	for (uint16_t i = x; i <= x + w; i++)
-		for (uint16_t ii = y; ii <= y + h; ii++) {
+	for (int32_t i = x; i < x + (int32_t)w; i++)
+		for (int32_t ii = y; ii < y + h; ii++) {
 			if (GetPixel(i, ii) == sColor)
 				SetPixel(i, ii, dColor);
 		}
@@ -450,36 +433,28 @@ void TFT::Gradient_Vertical(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h,
   uint8_t otR, uint8_t otG ,uint8_t otB,
   uint8_t doR, uint8_t doG, uint8_t doB){
 
-	uint8_t b[2][3];
-    uint8_t a[3];
+	if (w == 0 || h == 0) return;
 
-	float faktor;
-	uint8_t z;
-	uint16_t bis;
+	uint8_t a[3];
 	uint16_t color;
 
-	uint32_t x;
+	int32_t from[3];
+	int32_t to[3];
 
-	bis = h - 1;
+	from[0] = otR; from[1] = otG; from[2] = otB;
+	to[0]   = doR; to[1]   = doG; to[2]   = doB;
 
-	b[0][0] = otR;
-	b[0][1] = otG;
-	b[0][2] = otB;
+	//Линейная интерполяция целыми числами (без float)
+	int32_t div = (h > 1) ? (int32_t)(h - 1) : 1;
 
-	b[1][0] = doR;
-	b[1][1] = doG;
-	b[1][2] = doB;
+	for (uint32_t row = 0; row < h; row++) {
 
-for( x = 0; x < bis; x++ )
-{
-  faktor = (float)x / (float)bis;
+		for (uint32_t z = 0; z < 3; z++)
+			a[z] = (uint8_t)(from[z] + (((to[z] - from[z]) * (int32_t)row) / div));
 
-	for( z = 0; z < 3;z++)
-      a[z] = trunc((float)b[0][z] + (((float)b[1][z] - (float)b[0][z]) * faktor));
+		color = RGB565(a[0], a[1], a[2]);
 
-  color = RGB565(a[0],a[1],a[2]);
-
-  LineH(x+y0 , x0, x0 + w-1, color);
-}
+		LineH(row + y0, x0, x0 + w - 1, color);
+	}
 
 }
