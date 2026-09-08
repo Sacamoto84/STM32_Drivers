@@ -4,6 +4,9 @@
 #include "string.h"
 
 bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_t transp) {
+	//Прямое чтение buffer16 источника - поддерживается только 16 бит
+	if (tft_src->LCD->Bit != 16) return false;
+
 	//_xPivot = LCD->TFT_WIDTH / 2;
 	//_yPivot = LCD->TFT_HEIGHT / 2;
 
@@ -15,7 +18,7 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 		return false;
 
 	//Фиксированный буфер вместо VLA (диагональ экрана + запас)
-	#define TFT_ROT_LINE_BUF_MAX 720
+	#define TFT_ROT_LINE_BUF_MAX 1024
 	if (max_x - min_x + 1 > TFT_ROT_LINE_BUF_MAX) return false;
 	static uint16_t sline_buffer[TFT_ROT_LINE_BUF_MAX];
 
@@ -28,7 +31,9 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 
 	//if (_bpp == 4) tpcolor = _colorMap[transp & 0x0F];
 
-	tpcolor = tpcolor >> 8 | tpcolor << 8; // Working with swapped color bytes
+	//Цвет прозрачности сравнивается с "сырыми" пикселями buffer16,
+	//которые хранятся в нативном RGB565 (см. SetPixel16) - свап не нужен.
+	//Старый byteswap ломал сравнение: прозрачность никогда не срабатывала.
 
 	// Scan destination bounding box and fetch transformed pixels from source Sprite
 	for (int32_t y = min_y; y <= max_y; y++, yt++) {
@@ -156,6 +161,35 @@ void transformation::scroll(int16_t dx, int16_t dy)
 	      while (h--)
 	      { // move pixel lines (to, from, byte count)
 	        memmove( (&tft->LCD->buffer16[0] + typ) ,  (&tft->LCD->buffer16[0] + fyp), w<<1);
+	        typ += iw;
+	        fyp += iw;
+	      }
+	    }
+	    else if (tft->LCD->Bit == 8)
+	    {
+	      //8 бит: 1 байт на пиксель - строки можно двигать memmove
+	      while (h--)
+	      {
+	        memmove( (&tft->LCD->buffer8[0] + typ) ,  (&tft->LCD->buffer8[0] + fyp), w);
+	        typ += iw;
+	        fyp += iw;
+	      }
+	    }
+	    else
+	    {
+	      //1/4 бита: пиксели не выровнены по байтам - копируем попиксельно.
+	      //Раньше для этих глубин пиксели вообще не двигались, а заливка
+	      //"зазора" выполнялась - экран просто портился.
+	      //Направление обхода строк (iw может быть отрицательным при
+	      //скролле вниз) задают typ/fyp, как и в путях выше
+	      while (h--)
+	      {
+	        int32_t tox   = (int32_t)(typ % _iwidth);
+	        int32_t toy   = (int32_t)(typ / _iwidth);
+	        int32_t fromx = (int32_t)(fyp % _iwidth);
+	        int32_t fromy = (int32_t)(fyp / _iwidth);
+	        for (uint32_t i = 0; i < w; i++)
+	          tft->SetPixel(tox + (int32_t)i, toy, tft->GetPixel(fromx + (int32_t)i, fromy));
 	        typ += iw;
 	        fyp += iw;
 	      }

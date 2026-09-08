@@ -95,10 +95,10 @@ typedef enum {
 
 //TFT_LCD_t
 typedef struct {
-	int32_t TFT_WIDTH;       // ������ �������� ������
-	int32_t TFT_HEIGHT;      // ������ ������
+	int32_t TFT_WIDTH;       //Ширина экрана в пикселях
+	int32_t TFT_HEIGHT;      //Высота экрана в пикселях
 	LCD_DRIVER LCD_Driver; // 0-ST7735, 1-ST7789, 2-ILI9225 3-SSD1306 4-PCD8544
-	uint8_t Bit;             // �������� 16 8 4 2 1
+	uint8_t Bit;             //Битность цвета: 16 8 4 1
 
 #ifdef TFT_USE_SPI
 	  SPI_HandleTypeDef *hspi;
@@ -114,12 +114,12 @@ typedef struct {
 
 	uint8_t I2C_Adress;
 
-	uint16_t *buffer16;        // ��������� �� 16 ��� ������
-	uint8_t *buffer8;         // ��������� �� 8 ��� ������
-	uint16_t *palete;          // ��������� �� �� �������
+	uint16_t *buffer16;        //Буфер кадра для 16 бит
+	uint8_t *buffer8;         //Буфер кадра для 8/4/1 бит
+	uint16_t *palete;          //Палитра для 4/8 бит
 
-	uint16_t dx;               // ��������� �� �� �������
-	uint16_t dy;               // ��������� �� �� �������
+	uint16_t dx;               //Смещение активной области по X
+	uint16_t dy;               //Смещение активной области по Y
 	GPIO_TypeDef *GPIO_CS;
 	uint16_t GPIO_Pin_CS;
 	GPIO_TypeDef *GPIO_DC;

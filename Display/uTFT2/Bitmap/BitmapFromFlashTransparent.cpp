@@ -19,7 +19,10 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 				tmpCh = *p++;
 				if (tmpCh) {
 					while (bL < 8) {
-						if (tmpCh & 0x01)
+						//pY + bL < Y + H: биты дополнения последнего
+						//байта не рисуют ниже картинки
+						if ((tmpCh & 0x01) && (pY + bL < (int32_t)Y + bmp.H)
+								&& (TrColor != 1))
 							tft->SetPixel(pX, pY + bL, 1);
 						tmpCh >>= 1;
 						if (tmpCh)
@@ -39,6 +42,8 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 	}
 
 	if (bmp.bit == 16) {
+		//Прямая запись в buffer16 - только для 16-битного фреймбуфера
+		if (tft->LCD->Bit != 16) return;
 		//X, Y - uint16_t, отрицательными быть не могут
 		int32_t x0 = X;
 		int32_t y0 = Y;
@@ -55,7 +60,10 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 		uint32_t skip_cols = (uint32_t)(x0 - X);
 		uint32_t skip_rows = (uint32_t)(y0 - Y);
 
-		const uint16_t *p16 = bmp.steam16 + skip_rows * bmp.W + skip_cols;
+		//steam16 заполнен getResBitmapID; для вручную собранных Bitmap - data
+		const uint16_t *p16 = ((bmp.steam16 != NULL) ? bmp.steam16
+				: (const uint16_t *)bmp.data)
+				+ skip_rows * bmp.W + skip_cols;
 
 		for (int32_t pY = y0; pY < y1; pY++) {
 			const uint16_t *src = p16;

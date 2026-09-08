@@ -3,23 +3,24 @@
 #if (FAT_FS)
 
 //32 бит BMP с альфа каналом
-List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, char * Name, int offset, int swap)
+//offset - дополнительное смещение данных после bfOffBits (для нестандартных файлов)
+//swap - 0: формат [B][G][R][A], 1: формат [R][G][B][A] (порядок байтов цвета)
+List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const char * Name, int offset, int swap)
 {
-	List_Update_Particle result;
+	//Детерминированный результат даже при ошибках
+	List_Update_Particle result = {0, 0, 0, 0, 0, 0};
 
 	int res;
 	uint32_t index;
 	uint32_t index_max;
 	int32_t x, y;
-	//uint32_t dobavka_x;
 	uint16_t sColor;
-	//uint8_t  sAlpha;
 	float    sAlpha_Float, oneminusalpha;
 	uint16_t dColor;
 	uint8_t  sR,sG,sB;
 	uint8_t  dR,dG,dB;
 
-	uint8_t bmp_header_buffer[54]; //Буффер заголовка
+	uint8_t bmp_header_buffer[54]; //Буфер заголовка
 	UINT bytesread;
 
 	uint32_t offBits, width, height, clrUsed;
@@ -36,39 +37,46 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, char * Na
 		if (res == FR_OK && BMP_ParseHeader(bmp_header_buffer, bytesread,
 				&offBits, &width, &height, &bitCount, &clrUsed))
 		{
-			result.H = height;
-			result.W = width;
-
-			result.x0  = x0;
-			result.y0  = y0;
-
-			result.x1  = x0 + result.W - 1;
-			result.y1  = y0 + result.H - 1;
-
-			//Пропуск байтов между заголовком и данными пикселей
-			if (offset > 0) {
-				//Продвигаем указатель файла без чтения в буфер
-				if (f_lseek(&SDFile, f_tell(&SDFile) + (uint32_t)offset) != FR_OK) {
-					f_close(&SDFile);
-					return result;
-				}
+			if (bitCount != 32) {
+				//Не 32-битный файл - не декодируем вслепую
+				f_close(&SDFile);
+				return result;
 			}
 
-			index_max = result.H * result.W;
+			result.H = (int16_t)height;
+			result.W = (int16_t)width;
+
+			result.x0  = (int16_t)x0;
+			result.y0  = (int16_t)y0;
+
+			result.x1  = (int16_t)(x0 + result.W - 1);
+			result.y1  = (int16_t)(y0 + result.H - 1);
+
+			//Старт данных: bfOffBits из заголовка + пользовательское смещение
+			//(раньше offBits игнорировался и skip делался от текущей позиции -
+			//для файлов с палитрой/V4-заголовком читали не оттуда)
+			if (f_lseek(&SDFile, offBits + (uint32_t)offset) != FR_OK) {
+				f_close(&SDFile);
+				return result;
+			}
+
+			index_max = (uint32_t)result.H * result.W;
 
 			for(index = 0; index < index_max; index++)
 			{
-				if (index % 1024 == 0)
-					f_read (&SDFile, &BMP_From_File_buf[0], 4096, &bytesread);
+				if (index % 1024 == 0) {
+					//Дочитываем блок; обрабатываем только реально прочитанное
+					if (f_read (&SDFile, &BMP_From_File_buf[0], 4096, &bytesread) != FR_OK)
+						break;
+				}
 
-				//Обрабатываем только реально прочитанные байты
 				if (bytesread < (index % 1024) * 4 + 4)
 					break;
 
 			    x = (index % width) + x0;
-			    y = height - (index / width) - 1 + y0;
+			    y = (int32_t)height - (index / width) - 1 + y0;
 
-			    sAlpha_Float = BMP_From_File_buf[(index % 1024)*4+3] / 255.0;
+			    sAlpha_Float = BMP_From_File_buf[(index % 1024)*4+3] / 255.0F;
 
 			    if (swap == 0)
 			    {
@@ -91,9 +99,9 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, char * Na
 
 				oneminusalpha = 1.0F - sAlpha_Float;
 
-				sR = ((sR * sAlpha_Float) + (oneminusalpha * dR));
-                sG = ((sG * sAlpha_Float) + (oneminusalpha * dG));
-                sB = ((sB * sAlpha_Float) + (oneminusalpha * dB));
+				sR = (uint8_t)((sR * sAlpha_Float) + (oneminusalpha * dR));
+                sG = (uint8_t)((sG * sAlpha_Float) + (oneminusalpha * dG));
+                sB = (uint8_t)((sB * sAlpha_Float) + (oneminusalpha * dB));
 
 			    sColor = RGB565(sR, sG, sB);
 				tft->SetPixel(x, y, sColor);

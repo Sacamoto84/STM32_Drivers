@@ -101,7 +101,7 @@ void TFT::LineV(int32_t X, int32_t Y1, int32_t Y2, uint16_t color) {
 	int32_t i;
 
 	if ((LCD->Bit) == 1) {
-		if (color == 1) {
+		if (color != 0) {
 			for (i = Y1; i <= Y2; i++)
 				LCD->buffer8[X + (i / 8) * LCD->TFT_WIDTH] |= 1 << (i % 8);
 		} else {
@@ -142,7 +142,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	if (X1 > X2) return;
 
 	if ((LCD->Bit) == 1) {
-		if (color == 1) {
+		if (color != 0) {
 			for (i = X1; i <= X2; i++)
 				LCD->buffer8[i + (Y / 8) * LCD->TFT_WIDTH] |= 1 << (Y % 8);
 		} else {
@@ -278,8 +278,11 @@ void TFT::RectangleFilled(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 //Инверсия прямоугольника размером w x h пикселей
 void TFT::InvertRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
 	for (int32_t i = x; i < (int32_t)x + w; i++)
-		for (int32_t ii = y; ii < (int32_t)y + h; ii++)
-			SetPixel(i, ii, !GetPixel(i, ii));
+		for (int32_t ii = y; ii < (int32_t)y + h; ii++) {
+			u16 p = GetPixel(i, ii);
+			//Для 1 бита - логическая инверсия, для остальных - побитовая
+			SetPixel(i, ii, (LCD->Bit == 1) ? (u16)!p : (u16)(~p & 0xFFFF));
+		}
 }
 
 //Замена цветов в данном прямоугольнике размером w x h пикселей

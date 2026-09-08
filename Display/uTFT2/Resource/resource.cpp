@@ -22,15 +22,11 @@ uint8_t * getResAdressFontID(uint32_t id) {
 	    return adress;
 }
 
-//Получить дескриптов картинки из ресурсов 16 и 32 бит
-Bitmap getResBitmapID(int8_t id) {
+//Получить дескриптор картинки из ресурсов 16 и 32 бит
+Bitmap getResBitmapID(uint32_t id) {
     Bitmap bmp = {0, 0, 0, NULL, NULL, NULL, NULL};
-    if (id < 0)
-    {
-      return bmp;
-    }
     if (resurce_start_adress == 0) return bmp;
-    if ((uint32_t)id >= resurce_count) return bmp; //Выход за границы таблицы ресурсов
+    if (id >= resurce_count) return bmp; //Выход за границы таблицы ресурсов
 
     uint32_t *p;
     p = (uint32_t *)(resurce_start_adress + 4 + (16*id));
@@ -40,5 +36,9 @@ Bitmap getResBitmapID(int8_t id) {
     uint32_t * offset;
     offset = (uint32_t *)(resurce_start_adress + 4 + (16*id) + 12);
     bmp.data = (uint32_t *)(resurce_start_adress + *offset);
+    //Рендеры (Alpha, Background16bit, Transparent) читают steam16/steam32 -
+    //заполняем их тем же адресом данных (раньше оставались NULL)
+    bmp.steam16 = (unsigned short *)bmp.data;
+    bmp.steam32 = bmp.data;
   	return bmp;
 }

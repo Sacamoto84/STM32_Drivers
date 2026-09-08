@@ -50,18 +50,20 @@ public:
     	  Gloabal_percent = temp;
 
     	  elapsedTimeRate = Easing.get(easeP, temp ); //Получаем коеффициент смещения 0..1 от времени c учетом типа анимации
+    	  //Overshoot-анимации (BACK/ELASTIC) дают значения вне [0..1]:
+    	  //отрицательная ширина после приведения к uint16_t - это UB
+    	  if (elapsedTimeRate < 0.0F) elapsedTimeRate = 0.0F;
+    	  if (elapsedTimeRate > 1.0F) elapsedTimeRate = 1.0F;
 
-    	  if (typeAnimation == 0){  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, color);  }
+    	  if (typeAnimation == 0){  tft->RectangleFilled(x, y, (uint16_t)(W*elapsedTimeRate), H, color);  }
 
     	  if (typeAnimation == 1){
               for(int i = y; i< y+H; i++){
-    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2,  color);}
-    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, color);  }
+    		    tft->LineH(i, x + W/2-(elapsedTimeRate*W)/2,  x + W/2,  color);}
+    		  tft->RectangleFilled(x + W/2, y, (uint16_t)((W*elapsedTimeRate)/2), H, color);  }
 
     	  if (typeAnimation == 2){
               uint16_t col = tft->GetPixel(x, y);
-              if (elapsedTimeRate >= 1.0F) elapsedTimeRate = 1.0F;
-              if (elapsedTimeRate <= 0.0F) elapsedTimeRate = 0.0F;
               uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), color, col);
     		  tft->RectangleFilled(x, y, W, H, newcolor);  }
 
@@ -76,27 +78,26 @@ public:
     	  if (temp >= 1.0F) {N = 0; temp = 1.0F; } //Анимацию больше не использовать
     	  temp = constrain(temp, 0.0F, 1.0F);
     	  elapsedTimeRate = Easing.get(easeN, (1.0F - temp) ); //Получаем коеффициент смещения 0..1 от времени c учетом типа анимации
+    	  if (elapsedTimeRate < 0.0F) elapsedTimeRate = 0.0F;
+    	  if (elapsedTimeRate > 1.0F) elapsedTimeRate = 1.0F;
 
 
     	  if (typeAnimation == 0)
     	  {
-    		  tft->RectangleFilled(x, y, W*elapsedTimeRate, H, color);
+    		  tft->RectangleFilled(x, y, (uint16_t)(W*elapsedTimeRate), H, color);
     	  }
 
     	  if (typeAnimation == 1)
     	  {
               for(int i = y; i< y+H; i++)
-    		    tft->LineH(i, W/2-(elapsedTimeRate*W)/2,  W/2-1,  color);
+    		    tft->LineH(i, x + W/2-(elapsedTimeRate*W)/2,  x + W/2-1,  color);
 
-    		  tft->RectangleFilled(W/2, y, (W*elapsedTimeRate)/2, H, color);
+    		  tft->RectangleFilled(x + W/2, y, (uint16_t)((W*elapsedTimeRate)/2), H, color);
     	  }
 
     	  if (typeAnimation == 2)
     	  {
               uint16_t col = tft->GetPixel(x, y);
-              if (elapsedTimeRate >= 1.0F) elapsedTimeRate = 1.0F;
-              if (elapsedTimeRate <= 0.0F) elapsedTimeRate = 0.0F;
-
               uint16_t newcolor = tft->alphaBlend( (uint8_t)(255.0F*elapsedTimeRate), color, col);
 
     		  tft->RectangleFilled(x, y, W, H, newcolor);

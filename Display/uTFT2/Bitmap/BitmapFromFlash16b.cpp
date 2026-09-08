@@ -2,6 +2,9 @@
 
 //16 бит, без клиппинга экрана не вызывать
 void BitmapFromFlash16b(TFT * tft, int16_t X, int16_t Y, Bitmap *bmp) {
+	//Прямая запись в buffer16 - только для 16-битного фреймбуфера
+	if (tft->LCD->Bit != 16) return;
+
 	int32_t x0 = (X < 0) ? 0 : X;
 	int32_t y0 = (Y < 0) ? 0 : Y;
 	int32_t x1 = (int32_t)X + bmp->W; //эксклюзивная граница

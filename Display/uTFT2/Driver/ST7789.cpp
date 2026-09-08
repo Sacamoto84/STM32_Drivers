@@ -186,16 +186,18 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 }
 
 void TFT_Driver::ST7789_AddrSet(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+	//SendData(uint8_t) обрезает значения >255 - шлем старший и младший байты,
+	//как в ST7789_Update (иначе dx/dy или координаты > 255 портят окно)
 	SPI.SendCmd(0x2A);
-	SPI.SendData(0x00);
-	SPI.SendData(x0 + LCD->dx);
-	SPI.SendData(0x00);
-	SPI.SendData(x1 + LCD->dx);
+	SPI.SendData((x0 + LCD->dx) >> 8);
+	SPI.SendData((x0 + LCD->dx) & 0xFF);
+	SPI.SendData((x1 + LCD->dx) >> 8);
+	SPI.SendData((x1 + LCD->dx) & 0xFF);
 	SPI.SendCmd(0x2B);
-	SPI.SendData(0x00);
-	SPI.SendData(y0 + LCD->dy);
-	SPI.SendData(0x00);
-	SPI.SendData(y1 + LCD->dy);
+	SPI.SendData((y0 + LCD->dy) >> 8);
+	SPI.SendData((y0 + LCD->dy) & 0xFF);
+	SPI.SendData((y1 + LCD->dy) >> 8);
+	SPI.SendData((y1 + LCD->dy) & 0xFF);
 	SPI.SendCmd(0x2C);
 }
 
@@ -272,6 +274,15 @@ void TFT_Driver::ST7789_Update_Window(int16_t x1, int16_t y1, int16_t x2, int16_
 static uint16_t DMA_line_buffer0[TFT_DMA_LINE_BUF_MAX];
 static uint16_t DMA_line_buffer1[TFT_DMA_LINE_BUF_MAX];
 
+//Ожидание завершения предыдущей DMA-строки и запуск новой.
+//Возвращает статус HAL: при ошибке (HAL_BUSY и т.п.) передача не начата,
+//вызывающий обязан завершить обновление, не зависая в ожидании флага.
+HAL_StatusTypeDef TFT_Driver::ST7789_DMA_WaitAndSend(uint16_t *line) {
+	while (DMA_TX_Complete == 0) { __NOP(); }
+	DMA_TX_Complete = 0;
+	return HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line, LCD->TFT_WIDTH);
+}
+
 void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 
 	if (blockUpdate) return;
@@ -309,9 +320,10 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 	DATA;
 	/////////////////Spi8to16(LCD); //16bit mode
 
-	DMA_TX_Complete = 1;
+	DMA_TX_Complete = 1; //Активных передач нет - первый wait пройдет сразу
 
-	uint32_t index = 0; // ������ �� 0 �� ����� �����
+	uint32_t index = 0; //Индекс пикселя от 0 до W*H-1
+	HAL_StatusTypeDef st = HAL_OK;
 
 	for (uint16_t index_line = 0; index_line < LCD->TFT_HEIGHT; ) {
 
@@ -325,12 +337,14 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 			index++;
 		}
 
-		while(DMA_TX_Complete == 0){__NOP();};
-				DMA_TX_Complete = 0;
-
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer0, LCD->TFT_WIDTH);
-	    //� ��� ����� �������� � ������ 1
+		st = ST7789_DMA_WaitAndSend(line_buffer0);
+		if (st != HAL_OK) break;
+	    //Пока DMA шлет буфер 0 - готовим буфер 1
 		index_line++;
+		//Нечетная высота: последняя строка уже отправлена, выходим без
+		//чтения лишней строки за концом фреймбуфера
+		if (index_line >= LCD->TFT_HEIGHT) break;
+
 		for (int16_t row = 0; row < LCD->TFT_WIDTH; row++) {
 
 			if (index % 2) {
@@ -341,18 +355,18 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 			index++;
 		}
 
-
-		while(DMA_TX_Complete == 0){__NOP();};
-		DMA_TX_Complete = 0;
-
-
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer1, LCD->TFT_WIDTH);
+		st = ST7789_DMA_WaitAndSend(line_buffer1);
+		if (st != HAL_OK) break;
 		index_line++;
 	}
 
-
-	while(DMA_TX_Complete == 0){__NOP();};
-			DMA_TX_Complete = 0;
+	//Финальное ожидание: DMA завершено != SPI завершен. Ждем TXE+BSY,
+	//иначе переключение DFF оборвет последнее слово
+	while (DMA_TX_Complete == 0) { __NOP(); }
+	if (st == HAL_OK) {
+		while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
+		while (LCD->hspi->Instance->SR & SPI_SR_BSY);
+	}
 
 	SPI.Spi16to8(); //8bit mode
 	if (LCD->GPIO_CS != NULL) {
@@ -398,9 +412,10 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 	DATA;
 	/////////////////Spi8to16(LCD); //16bit mode
 
-	DMA_TX_Complete = 1;
+	DMA_TX_Complete = 1; //Активных передач нет - первый wait пройдет сразу
 
-	uint32_t index = 0; // ������ �� 0 �� ����� �����
+	uint32_t index = 0; //Индекс пикселя от 0 до W*H-1
+	HAL_StatusTypeDef st = HAL_OK;
 
 	for (uint16_t index_line = 0; index_line < LCD->TFT_HEIGHT; ) {
 
@@ -409,28 +424,29 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 			index++;
 		}
 
-		while(DMA_TX_Complete == 0){__NOP();};
-				DMA_TX_Complete = 0;
-
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer0, LCD->TFT_WIDTH);
-	    //� ��� ����� �������� � ������ 1
+		st = ST7789_DMA_WaitAndSend(line_buffer0);
+		if (st != HAL_OK) break;
+	    //Пока DMA шлет буфер 0 - готовим буфер 1
 		index_line++;
+		//Нечетная высота: последняя строка уже отправлена
+		if (index_line >= LCD->TFT_HEIGHT) break;
+
 		for (int16_t row = 0; row < LCD->TFT_WIDTH; row++) {
 				line_buffer1[row] =	LCD->palete[LCD->buffer8[index]]; //8 bit
 			index++;
 		}
 
-		while(DMA_TX_Complete == 0){__NOP();};
-		DMA_TX_Complete = 0;
-
-
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer1, LCD->TFT_WIDTH);
+		st = ST7789_DMA_WaitAndSend(line_buffer1);
+		if (st != HAL_OK) break;
 		index_line++;
 	}
 
-
-	while(DMA_TX_Complete == 0){__NOP();};
-			DMA_TX_Complete = 0;
+	//Финальное ожидание: DMA завершено != SPI завершен
+	while (DMA_TX_Complete == 0) { __NOP(); }
+	if (st == HAL_OK) {
+		while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
+		while (LCD->hspi->Instance->SR & SPI_SR_BSY);
+	}
 
 	SPI.Spi16to8(); //8bit mode
 	if (LCD->GPIO_CS != NULL) {
@@ -476,39 +492,41 @@ void TFT_Driver::ST7789_UpdateDMA16bitV2(void) {
 		DATA;
 		/////////////////Spi8to16(LCD); //16bit mode
 
-		DMA_TX_Complete = 1;
+		DMA_TX_Complete = 1; //Активных передач нет - первый wait пройдет сразу
 
-		uint32_t index = 0; // ������ �� 0 �� ����� �����
+		uint32_t index = 0; //Индекс пикселя от 0 до W*H-1
+		HAL_StatusTypeDef st = HAL_OK;
 
 		for (uint16_t index_line = 0; index_line < LCD->TFT_HEIGHT; ) {
 
 			for (int16_t row = 0; row < LCD->TFT_WIDTH; row++) {
-					line_buffer0[row] =	LCD->buffer16[index]; //8 bit
+					line_buffer0[row] =	LCD->buffer16[index]; //16 bit
 				index++;
 			}
 
-			while(DMA_TX_Complete == 0){__NOP();};
-					DMA_TX_Complete = 0;
-
-			HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer0, LCD->TFT_WIDTH);
-		    //� ��� ����� �������� � ������ 1
+			st = ST7789_DMA_WaitAndSend(line_buffer0);
+			if (st != HAL_OK) break;
+		    //Пока DMA шлет буфер 0 - готовим буфер 1
 			index_line++;
+			//Нечетная высота: последняя строка уже отправлена
+			if (index_line >= LCD->TFT_HEIGHT) break;
+
 			for (int16_t row = 0; row < LCD->TFT_WIDTH; row++) {
-					line_buffer1[row] =	LCD->buffer16[index]; //8 bit
+					line_buffer1[row] =	LCD->buffer16[index]; //16 bit
 				index++;
 			}
 
-			while(DMA_TX_Complete == 0){__NOP();};
-			DMA_TX_Complete = 0;
-
-
-			HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line_buffer1, LCD->TFT_WIDTH);
+			st = ST7789_DMA_WaitAndSend(line_buffer1);
+			if (st != HAL_OK) break;
 			index_line++;
 		}
 
-
-		while(DMA_TX_Complete == 0){__NOP();};
-				DMA_TX_Complete = 0;
+		//Финальное ожидание: DMA завершено != SPI завершен
+		while (DMA_TX_Complete == 0) { __NOP(); }
+		if (st == HAL_OK) {
+			while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
+			while (LCD->hspi->Instance->SR & SPI_SR_BSY);
+		}
 
 		SPI.Spi16to8(); //8bit mode
 		if (LCD->GPIO_CS != NULL) {
@@ -551,12 +569,28 @@ void TFT_Driver::ST7789_UpdateDMA16bitV3(void) {
 		DATA;
 		/////////////////Spi8to16(LCD); //16bit mode
 
-		DMA_TX_Complete = 0;
+		//HAL_SPI_Transmit_DMA принимает Size как uint16_t, а NDTR DMA тоже
+		//16-битный. Для 240x320 (76800 слов) старый код молча усекал размер.
+		//Передаем кадр кусками по 65535 слов.
+		uint32_t total = (uint32_t)LCD->TFT_WIDTH * LCD->TFT_HEIGHT;
+		uint16_t *p = &LCD->buffer16[0];
 
-		HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)LCD->buffer16, LCD->TFT_WIDTH * LCD->TFT_HEIGHT);
+		while (total > 0) {
+			uint32_t chunk = (total > 65535u) ? 65535u : total;
 
-		while(DMA_TX_Complete == 0){__NOP();};
-				DMA_TX_Complete = 0;
+			DMA_TX_Complete = 0;
+			HAL_StatusTypeDef st = HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)p, (uint16_t)chunk);
+			if (st != HAL_OK) break; //Передача не начата (HAL_BUSY) - не зависаем
+
+			while (DMA_TX_Complete == 0) { __NOP(); }
+
+			p += chunk;
+			total -= chunk;
+		}
+
+		//Ждем фактического завершения SPI перед сменой DFF
+		while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
+		while (LCD->hspi->Instance->SR & SPI_SR_BSY);
 
 		SPI.Spi16to8(); //8bit mode
 		if (LCD->GPIO_CS != NULL) {
@@ -594,6 +628,10 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 
 	if (LCD->hspi->hdmatx == NULL) return; //TX DMA не привязан к SPI
 	dma = LCD->hspi->hdmatx->Instance;
+
+	//NDTR DMA 16-битный: кадр больше 65535 слов одним кольцом не передать
+	//(раньше размер молча усекался и поток рассыпался)
+	if ((uint32_t)LCD->TFT_WIDTH * LCD->TFT_HEIGHT > 0xFFFFu) return;
 
 	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA
 	while (!(spi->SR & SPI_SR_TXE));    //Ждем окончания передачи по SPI

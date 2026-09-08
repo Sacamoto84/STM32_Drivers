@@ -73,8 +73,8 @@ const uint16_t ILI9225_regValues[] = {
 void TFT_Driver::ILI9225_init_table16(const uint16_t *table, int16_t size)
 {
       const uint16_t  *p = table;
-	  static uint16_t  cmd;
-	  static uint16_t  d;
+	  uint16_t  cmd;
+	  uint16_t  d;
 	
     while (size > 0) 
 		{

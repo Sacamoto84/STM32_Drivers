@@ -31,6 +31,13 @@ public:
 	void init(TFT_LCD_t *_LCD) {
 		LCD = _LCD;
 
+		//Детерминированное начальное состояние флагов.
+		//Для объекта на стеку/куче без этого мусор в blockUpdate
+		//навсегда блокирует Update, а DMA-циклы зависают в ожидании.
+		DMA_TX_Complete = 1; //1 = передачи нет, можно стартовать
+		blockUpdate = 0;
+		needUpdate = 0;
+
 		switch (LCD->LCD_Driver) {
 
 #if defined(TFT_DRIVER_SSD1306)
@@ -141,6 +148,10 @@ public:
 	//Обновление регистра MADCTL
 	void ST77XX_Update_MADCTL(void);
 	void ST7789_Update_Window(int16_t x1, int16_t y1, int16_t x2, int16_t y2);
+
+	//Ожидание завершения предыдущей DMA-строки и запуск новой.
+	//Возвращает статус HAL: при ошибке передача не начата.
+	HAL_StatusTypeDef ST7789_DMA_WaitAndSend(uint16_t *line);
 
 	void ST7789_UpdateDMA4bitV2(void);
 	void ST7789_UpdateDMA8bitV2(void);

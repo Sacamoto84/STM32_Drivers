@@ -112,7 +112,6 @@ volatile HAL_StatusTypeDef res;
 
 //490uS-72MHz
 void TFT_Driver::SSD1306_UpdateScreen(void) {
-	uint8_t *p;
 
 	if (LCD->hi2c)  //I2C
 	{
@@ -146,13 +145,12 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 		//HAL_Delay(10);
 #endif
 
-		p = &LCD->buffer8[0];
-		p--;
-		*p = 0x40;
-
-		res = HAL_I2C_Master_Transmit(LCD->hi2c, LCD->I2C_Adress, p,
-				(LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8 + 1, 1000);
-
+		//Протокол SSD1306 I2C: [Control byte 0x40][данные...].
+		//HAL_I2C_Mem_Write отправляет ровно эту последовательность.
+		//Старый вариант писал 0x40 в байт ПЕРЕД buffer8 (порча памяти).
+		res = HAL_I2C_Mem_Write(LCD->hi2c, LCD->I2C_Adress, 0x40,
+				I2C_MEMADD_SIZE_8BIT, &LCD->buffer8[0],
+				((uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8, 1000);
 
 		return;
 #endif
@@ -168,15 +166,19 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 		SSD1306_WRITECOMMAND( 0x10);
 		
 		HAL_GPIO_WritePin(LCD->GPIO_DC, LCD->GPIO_Pin_DC, GPIO_PIN_SET);
-		uint8_t * p;
-		p = &LCD->buffer8[0];
-		p--;			
-		for(uint16_t i = 0; i < 1025; i++)
-		{			
-		  LCD->hspi->Instance->DR = *p++;		
-          while( (LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0 );
-		}	
-		
+
+		//Ровно размер фреймбуфера (старый код слал хардкод 1025 байт
+		//и начинал с байта перед буфером)
+		uint32_t count = ((uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8;
+		for (uint32_t i = 0; i < count; i++) {
+			LCD->hspi->Instance->DR = LCD->buffer8[i];
+			while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
+		}
+
+		//Ждем фактического завершения передачи перед поднятием CS
+		while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
+		while (LCD->hspi->Instance->SR & SPI_SR_BSY);
+
 		if (LCD->GPIO_CS != NULL)	
 			CS_1;
 

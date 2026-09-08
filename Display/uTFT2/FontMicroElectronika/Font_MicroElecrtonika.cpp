@@ -25,13 +25,14 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 
 	int16_t temp;
 	int16_t Height;
+	uint8_t maxWidth;
 
 	//Символы до пробела не входят в таблицы шрифта (отрицательный индекс)
 	if (ch < 32) {
 		return;
 	}
 
-	if (ch < 0xC0) //ENG
+	if (ch < 0x80) //ENG (таблица содержит глифы 32..127)
 			{
 
 		if (Font.dataEng == NULL)
@@ -42,8 +43,9 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 		offset = p;
 		p++;
 		Height = Font.FontHeightEng;
+		maxWidth = Font.FontWidthEng;
 
-	} else //RUS
+	} else if (ch >= 0xC0) //RUS
 	{
 		if (Font.dataRus == NULL)
 			return;
@@ -53,6 +55,18 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 		offset = p;
 		p++;
 		Height = Font.FontHeightRus;
+		maxWidth = Font.FontWidthRus;
+	} else {
+		//0x80..0xBF: спецсимволы cp1251, глифов в шрифте нет -
+		//раньше здесь читали за границей ENG-таблицы
+		tft->uTFT.CurrentX += 1 + dx;
+		return;
+	}
+
+	//Защита от битых данных: ширина глифа не больше заявленной ширины шрифта
+	if (*offset > maxWidth) {
+		tft->uTFT.CurrentX += dx;
+		return;
 	}
 
 	for (i = 0; i < *offset; i++) {
@@ -88,13 +102,13 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 	const uint8_t *p;
 
 	uint16_t lenSum = 0;
-	uint8_t lengs = strlen(str); //Количество символов
+	uint32_t lengs = strlen(str); //Количество символов (без обрезки на 255)
 
 	if (uFont->dataEng == NULL)
 		return 0;
 
 	//Перебираем каждый символ
-	for (uint8_t i = 0; i < lengs; i++) {
+	for (uint32_t i = 0; i < lengs; i++) {
 		uint8_t ch = (uint8_t)str[i];
 
 		//Символ вне таблиц шрифта - ширина одного столбца
@@ -103,11 +117,11 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 			continue;
 		}
 
-		if (ch < 0xC0) { //ENG
+		if (ch < 0x80) { //ENG
 			p = uFont->dataEng;
 			p += (ch - 32) * ((uFont->FontHeightEng) / 8 + 1)
 					* uFont->FontWidthEng + (ch - 32);
-		} else { //RUS
+		} else if (ch >= 0xC0) { //RUS
 			if (uFont->dataRus == NULL) {
 				lenSum += 1;
 				continue;
@@ -115,6 +129,10 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 			p = uFont->dataRus;
 			p += (ch - 0xC0) * ((uFont->FontHeightRus) / 8 + 1)
 					* uFont->FontWidthRus + (ch - 0xC0);
+		} else {
+			//0x80..0xBF: спецсимволы cp1251, глифов в шрифте нет
+			lenSum += 1;
+			continue;
 		}
 
 		lenSum += *p + 1;

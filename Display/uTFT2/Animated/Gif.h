@@ -54,6 +54,8 @@
 
 #include "fatfs.h"
 
+#include <stdio.h> //snprintf
+
 //Логирование (опционально, define TFT_USE_TIMBER в TFT_config.h)
 #ifdef TFT_USE_TIMBER
 #include <timber.h>
@@ -346,6 +348,11 @@ private:
 							&bytesread); ////915us -Of Gen off
 					p16 = (uint16_t *)&BMP_From_File_buf[0];
 				}
+				//Читаем пиксель ДО проверки клиппинга: иначе при выходе
+				//картинки за экран поток байтов рассинхронизируется
+				//и весь кадр смещается/рвется
+				sColor = *p16++;
+
 				_x = (index % W) + x;
 				_y = (index / W) + y;
 
@@ -354,7 +361,6 @@ private:
 					_y < 0 || _y >= tft->LCD->TFT_HEIGHT)
 					continue;
 
-				sColor = *p16++;
 				tft->LCD->buffer16[_x + _y * tft->LCD->TFT_WIDTH] = sColor;
 			}
 

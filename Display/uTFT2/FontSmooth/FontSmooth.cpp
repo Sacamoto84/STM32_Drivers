@@ -94,10 +94,10 @@ static const unsigned char *p_start; //Стартовый индекс масс�
 
 uint32_t readInt32(void) {
 	uint32_t res = 0;
-	res  = (*p++ << 24);
-	res |= (*p++ << 16);
-	res |= (*p++ << 8);
-	res |= (*p++);
+	res  = ((uint32_t)*p++ << 24);
+	res |= ((uint32_t)*p++ << 16);
+	res |= ((uint32_t)*p++ << 8);
+	res |=  (uint32_t)*p++;
 
 	return  res;
 }
@@ -301,9 +301,12 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 							{
 
 #ifdef USE_NOTSAVE_FONT
+							//Прямая запись в buffer16 - обязателен клиппинг
+							if (xs >= 0 && xs < tft->LCD->TFT_WIDTH &&
+								y + cy >= 0 && y + cy < tft->LCD->TFT_HEIGHT)
 								tft->LCD->buffer16[xs + (y + cy) * tft->LCD->TFT_WIDTH] = fg;
 #else
-								tft->SetPixel(xs, y + cy, fg);
+							tft->SetPixel(xs, y + cy, fg);
 #endif
 							}
 							else
@@ -315,7 +318,9 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 						if (getColor)
 						{
 #ifdef USE_NOTSAVE_FONT
-							bg = tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH];
+							if (x + cx >= 0 && x + cx < tft->LCD->TFT_WIDTH &&
+								y + cy >= 0 && y + cy < tft->LCD->TFT_HEIGHT)
+								bg = tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH];
 #else
 							bg = tft->GetPixel(x + cx, y + cy);
 #endif
@@ -323,7 +328,9 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 
 
 #ifdef USE_NOTSAVE_FONT
-						tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH] = tft->alphaBlend(pixel, fg, bg);
+						if (x + cx >= 0 && x + cx < tft->LCD->TFT_WIDTH &&
+							y + cy >= 0 && y + cy < tft->LCD->TFT_HEIGHT)
+							tft->LCD->buffer16[x + cx + (y + cy) * tft->LCD->TFT_WIDTH] = tft->alphaBlend(pixel, fg, bg);
 #else
 						tft->SetPixel(x + cx, y + cy, tft->alphaBlend(pixel, fg, bg));
 #endif
@@ -397,6 +404,7 @@ void Font_Smooth_drawStr(TFT * tft, const char *str) {
 
 		if ((uint8_t)*str >= 0xD0){
 			code  = ((uint8_t)*str++)<<8;
+			if (*str == 0) break; //Обрыв 2-байтной пары UTF-8 в конце строки
 			code |= (uint8_t)*str;}
 		else
 			code = (uint8_t)*str;
@@ -415,6 +423,7 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str) {
 
 		if ((uint8_t)*str >= 0xD0){
 			code  = ((uint8_t)*str++)<<8;
+			if (*str == 0) break; //Обрыв 2-байтной пары UTF-8 в конце строки
 			code |= (uint8_t)*str;}
 		else
 			code = (uint8_t)*str;
@@ -435,6 +444,7 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str, uint16_t colo
 
 		if ((uint8_t)*str >= 0xD0){
 			code  = ((uint8_t)*str++)<<8;
+			if (*str == 0) break; //Обрыв 2-байтной пары UTF-8 в конце строки
 			code |= (uint8_t)*str;}
 		else
 			code = (uint8_t)*str;

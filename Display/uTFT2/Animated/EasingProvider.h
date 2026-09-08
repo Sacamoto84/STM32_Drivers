@@ -61,23 +61,20 @@ private:
     float getPowInOut(float elapsedTimeRate, double pow1) {
         float e = elapsedTimeRate * 2;
         if (e < 1) {
-            return (float) (0.5 * pow(elapsedTimeRate, pow1));
+            return (float) (0.5 * pow(e, pow1));
         }
 
-        return (float) (1 - 0.5 * abs(pow(2 - elapsedTimeRate, pow1)));
+        return (float) (1 - 0.5 * pow(2 - e, pow1));
     }
 
     float getBackInOut(float elapsedTimeRate, float amount) {
        amount *= 1.525;
        float e = elapsedTimeRate * 2;
        if ((e) < 1) {
-           return (float) (0.5 * (elapsedTimeRate * elapsedTimeRate * ((amount + 1) * elapsedTimeRate - amount)));
+           return (float) (0.5 * (e * e * ((amount + 1) * e - amount)));
        }
-       float r;
-       e = elapsedTimeRate - 2.0F;
-
-       r = (float) (0.5 * (e * elapsedTimeRate * ((amount + 1.0) * elapsedTimeRate + amount) + 2.0));
-       return r;
+       e = elapsedTimeRate * 2.0F - 2.0F;
+       return (float) (0.5 * (e * e * ((amount + 1.0) * e + amount) + 2.0));
    }
 
    float getBounceIn(float elapsedTimeRate)
@@ -88,16 +85,16 @@ private:
    float getBounceOut(float elapsedTimeRate) {
        if (elapsedTimeRate < 1 / 2.75) {
            return (float) (7.5625 * elapsedTimeRate * elapsedTimeRate);
-       } else if (elapsedTimeRate < 2 / 2.75) {
-    	   float e = elapsedTimeRate -  1.5F / 2.75F;
-           return (float) (7.5625 * (e)  * elapsedTimeRate + 0.75);
-       } else if (elapsedTimeRate < 2.5 / 2.75) {
-    	   float e = elapsedTimeRate - 2.25 / 2.75;
-           return (float) (7.5625 * e  * elapsedTimeRate + 0.9375);
-       } else {
-    	   float e = elapsedTimeRate - 2.625 / 2.75;
-           return (float) (7.5625 * e * elapsedTimeRate + 0.984375);
-       }
+        } else if (elapsedTimeRate < 2 / 2.75) {
+     	   float e = elapsedTimeRate -  1.5F / 2.75F;
+            return (float) (7.5625 * e * e + 0.75);
+        } else if (elapsedTimeRate < 2.5 / 2.75) {
+     	   float e = elapsedTimeRate - 2.25 / 2.75;
+            return (float) (7.5625 * e * e + 0.9375);
+        } else {
+     	   float e = elapsedTimeRate - 2.625 / 2.75;
+            return (float) (7.5625 * e * e + 0.984375);
+        }
    }
 
    float getElasticIn(float elapsedTimeRate, double amplitude, double period) {
@@ -180,25 +177,25 @@ public:
                return (float) (-0.5f * (cos(PI * elapsedTimeRate) - 1.0F));
            case BACK_IN:
                return (float) (  elapsedTimeRate * elapsedTimeRate * ((1.7 + 1.0F) * elapsedTimeRate - 1.7));
-           case BACK_OUT:
-           {   e = elapsedTimeRate - 1;
-               return (float) (e * elapsedTimeRate * ((1.7 + 1.0F) * elapsedTimeRate + 1.7) + 1.0F);}
+            case BACK_OUT:
+            {   e = elapsedTimeRate - 1;
+                return (float) (e * e * ((1.7 + 1.0F) * e + 1.7) + 1.0F);}
            case BACK_IN_OUT:
                return getBackInOut(elapsedTimeRate, 1.7f);
            case CIRC_IN:
                return (float) -(sqrt(1.0F - elapsedTimeRate * elapsedTimeRate) - 1);
 
-           case CIRC_OUT:{
-        	   e = elapsedTimeRate - 1;
-               return (float) sqrt(1.0F - (e) * elapsedTimeRate);}
+            case CIRC_OUT:{
+         	   e = elapsedTimeRate - 1;
+                return (float) sqrt(1.0F - e * e);}
 
-           case CIRC_IN_OUT:
-               e = elapsedTimeRate * 2.0F;
-               if ( e < 1.0F) {
-                   return (float) (-0.5f * (sqrt(1.0F - elapsedTimeRate * elapsedTimeRate) - 1.0F));
-               }
-               e = elapsedTimeRate - 2.0F;
-               return (float) (0.5f * (sqrt(1.0F - (e) * elapsedTimeRate) + 1.0F));
+            case CIRC_IN_OUT:
+                e = elapsedTimeRate * 2.0F;
+                if ( e < 1.0F) {
+                    return (float) (-0.5f * (sqrt(1.0F - e * e) - 1.0F));
+                }
+                e = elapsedTimeRate * 2.0F - 2.0F;
+                return (float) (0.5f * (sqrt(1.0F - e * e) + 1.0F));
            case BOUNCE_IN:
                return getBounceIn(elapsedTimeRate);
            case BOUNCE_OUT:
@@ -223,13 +220,14 @@ public:
            case EASE_OUT_EXPO: {
                return (float) -pow(2, -10 * elapsedTimeRate) + 1;
            }
-           case EASE_IN_OUT_EXPO: {
-               e = elapsedTimeRate * 2;
-               if (e < 1) {
-                   return (float) pow(2, 10 * (elapsedTimeRate - 1.0F)) * 0.5f;
-               }
-               return (float) (-pow(2, -10 * --elapsedTimeRate) + 2.0F) * 0.5F;
-           }
+            case EASE_IN_OUT_EXPO: {
+                e = elapsedTimeRate * 2;
+                if (e < 1) {
+                    return (float) pow(2, 10 * (e - 1.0F)) * 0.5f;
+                }
+                e -= 1.0F;
+                return (float) (-pow(2, -10 * e) + 2.0F) * 0.5F;
+            }
            default:
                return elapsedTimeRate;
 
