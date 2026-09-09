@@ -14,37 +14,35 @@
 //#define SSD1306_WRITEDATA(data)            ssd1306_I2C_Write(SSD1306_I2C, SSD1306_I2C_ADDR, 0x40, (data))
 
 void TFT_Driver::SSD1306_WRITECOMMAND(uint8_t data) {
+#ifdef TFT_USE_I2C
 	if (LCD->hi2c)  //I2C
 	{
 		uint8_t dt[2];
 		dt[0] = 0;
 		dt[1] = data;
 		HAL_I2C_Master_Transmit(LCD->hi2c, LCD->I2C_Adress, dt, 2, 1000);
-	} else                          //SPI
-	{
-#if defined(TFT_USE_SPI)
-		SPI.SendCmd(data);
-#endif
+		return;
 	}
-
+#endif
+#if defined(TFT_USE_SPI)
+	SPI.SendCmd(data);
+#endif
 }
 
 void TFT_Driver::SSD1306_WRITEDATA(uint8_t data) {
+#ifdef TFT_USE_I2C
 	if (LCD->hi2c)  //I2C
 	{
-#ifdef TFT_USE_I2C
 		uint8_t dt[2];
 		dt[0] = 0x40;
 		dt[1] = data;
 		HAL_I2C_Master_Transmit(LCD->hi2c, LCD->I2C_Adress, dt, 2, 1000);
-#endif
-	} else //SPI
-	{
-#if defined( TFT_USE_SPI)
-		SPI.SendData(data);
-#endif
+		return;
 	}
-
+#endif
+#if defined(TFT_USE_SPI)
+	SPI.SendData(data);
+#endif
 }
 
 //Инициализация первого экрана
@@ -62,7 +60,7 @@ void TFT_Driver::SSD1306_Init(void) {
 	/* Init LCD */
 	SSD1306_WRITECOMMAND(0xAE); //display off
 	SSD1306_WRITECOMMAND(0x20); //Set Memory Addressing Mode
-	SSD1306_WRITECOMMAND(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
+	SSD1306_WRITECOMMAND(0x00); //00: Horizontal Addressing Mode; 01: Vertical; 02: Page
 	SSD1306_WRITECOMMAND(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
 	SSD1306_WRITECOMMAND(0xC8); //Set COM Output Scan Direction
 	SSD1306_WRITECOMMAND(0x00); //---set low column address
@@ -108,67 +106,41 @@ void TFT_Driver::SSD1306_Init(void) {
 	//uTFT.CurrentY = 0;
 }
 
-volatile HAL_StatusTypeDef res;
+static volatile HAL_StatusTypeDef res;
 
 //490uS-72MHz
 void TFT_Driver::SSD1306_UpdateScreen(void) {
+	//Сброс диапазона колонок (0..W-1) и страниц (0..H/8-1) перед передачей
+	SSD1306_WRITECOMMAND(0x21); //Set Column Address
+	SSD1306_WRITECOMMAND(0x00);
+	SSD1306_WRITECOMMAND((uint8_t)(LCD->TFT_WIDTH - 1));
+	SSD1306_WRITECOMMAND(0x22); //Set Page Address
+	SSD1306_WRITECOMMAND(0x00);
+	SSD1306_WRITECOMMAND((uint8_t)((LCD->TFT_HEIGHT / 8) - 1));
 
+#ifdef TFT_USE_I2C
 	if (LCD->hi2c)  //I2C
 	{
-
-#ifdef	TFT_USE_I2C
-
-
-//		for(uint8_t i = 0; i < 7; i++) {
-//		        //SSD1306_WRITECOMMAND(0xB0+i);
-//		        //SSD1306_WRITECOMMAND(0x00);
-//		       // SSD1306_WRITECOMMAND(0x10);
-//                HAL_Delay(5);
-//		        HAL_I2C_Master_Transmit(LCD->hi2c, LCD->I2C_Adress, &LCD->buffer8[128*i],
-//		       				128, 1000);
-//
-//		    }
-
-
-
-
-
-
-
-//		SSD1306_WRITECOMMAND(0xB0);
-//		SSD1306_WRITECOMMAND(0x00);
-//		SSD1306_WRITECOMMAND(0x10);
-
 #if defined(LCD_osDelay)
-			osDelay(2);
-		#else
-		//HAL_Delay(10);
+		osDelay(2);
 #endif
-
 		//Протокол SSD1306 I2C: [Control byte 0x40][данные...].
 		//HAL_I2C_Mem_Write отправляет ровно эту последовательность.
-		//Старый вариант писал 0x40 в байт ПЕРЕД buffer8 (порча памяти).
 		res = HAL_I2C_Mem_Write(LCD->hi2c, LCD->I2C_Adress, 0x40,
 				I2C_MEMADD_SIZE_8BIT, &LCD->buffer8[0],
 				((uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8, 1000);
 
 		return;
+	}
 #endif
-
-	} else { //SPI
 
 #if defined(TFT_USE_SPI)
     if (LCD->GPIO_CS != NULL)	
     	CS_0;
-		
-		SSD1306_WRITECOMMAND( 0xB0);
-		SSD1306_WRITECOMMAND( 0x00);
-		SSD1306_WRITECOMMAND( 0x10);
-		
+
 		HAL_GPIO_WritePin(LCD->GPIO_DC, LCD->GPIO_Pin_DC, GPIO_PIN_SET);
 
-		//Ровно размер фреймбуфера (старый код слал хардкод 1025 байт
-		//и начинал с байта перед буфером)
+		//Ровно размер фреймбуфера
 		uint32_t count = ((uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8;
 		for (uint32_t i = 0; i < count; i++) {
 			LCD->hspi->Instance->DR = LCD->buffer8[i];
@@ -185,8 +157,6 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 #endif
 
 	}
-
-}
 
 void TFT_Driver::SSD1306_Contrast(uint8_t c) {
 	SSD1306_WRITECOMMAND(0x81);

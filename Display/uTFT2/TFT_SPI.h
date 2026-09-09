@@ -49,7 +49,8 @@
 	 	    CMD;
 	 	    __NOP();
 	 		LCD->hspi->Instance->DR = cmd;
-	 		while( (LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0);
+	 		while( (LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0 );
+	 		while( (LCD->hspi->Instance->SR & SPI_FLAG_BSY) != 0 );
 	 	}
 
 	 	// Только для порта настроенного на 16 бит
@@ -59,6 +60,7 @@
 	 	    __NOP();
 	 		LCD->hspi->Instance->DR = data;
 	 		while( (LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0 );
+	 		while( (LCD->hspi->Instance->SR & SPI_FLAG_BSY) != 0 );
 	 	}
 
 	 #ifndef NOSPI16

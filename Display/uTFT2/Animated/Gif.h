@@ -158,7 +158,7 @@ public:
 		snprintf(name_gif, sizeof(name_gif), "%s", name);
 
 		//Читаем настройки
-		char current_patch[32]; //Полный путь к файлу
+		char current_patch[64]; //Полный путь к файлу
 		snprintf(current_patch, sizeof(current_patch), "/Gif/%s/i.txt", name_gif); //Собираем полный путь в файлу
 		int res = f_open(&SDFile, current_patch, FA_READ);
 		char BMP_From_File_buf[64];
@@ -190,8 +190,8 @@ public:
 			index_max = atoi(BMP_From_File_buf) - 1;
 
 			TFT_GIF_LOG("(+) GIF name: %s  H: %d  W: %d  bit: %d  frame: %d\n", name_gif, H, W, field.bit, index_max + 1);
+			f_close(&SDFile);
 		}
-		f_close(&SDFile);
 
 	}
 
@@ -219,8 +219,8 @@ public:
 	} field;
 
 	uint32_t delay    = 100; //Задержка кадра, мс
-	Bitmap   bmpStop  = {0}; //Картинка отображаемая при отсуствии анимации
-	Bitmap   bmpStart = {0}; //Картинка отображаемая при отсуствии анимации
+	Bitmap   bmpStop  = {0, 0, 0, NULL, NULL, NULL, NULL}; //Картинка отображаемая при отсутствии анимации
+	Bitmap   bmpStart = {0, 0, 0, NULL, NULL, NULL, NULL}; //Картинка отображаемая при отсутствии анимации
 
 
 private:
@@ -254,7 +254,6 @@ private:
 		//Ошибка открытия картинки с microSD
 		if(res != FR_OK)		{
 			TFT_GIF_LOG("\033[01;38;05;51mGif>\033[01;38;05;196mERROR open>\033[01;38;05;46m%s\n", current_patch);
-			f_close(&SDFile);  //7uS
 		    return;
 		}
 

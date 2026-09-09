@@ -99,6 +99,13 @@ public:
 
 	void drawChar(unsigned char c, uint8_t size = 1) {
 
+		if (c == '\r') return;
+		if (c == '\n') {
+			_tft->uTFT.CurrentX = 0;
+			_tft->uTFT.CurrentY += gfxFont ? gfxFont->yAdvance : 16;
+			return;
+		}
+
 		//Защита: шрифт не установлен или символ вне диапазона глифов
 		//(иначе - чтение чужой памяти через glyph[])
 		if (gfxFont == NULL || c < gfxFont->first || c > gfxFont->last) {
@@ -154,36 +161,45 @@ public:
 
 
 
-//#define maxString 64 // ограничиваем строку шириной экрана
-char target[64 + 1] = "";
+#define GFX_MAX_STRING 255
+char target[GFX_MAX_STRING + 1] = "";
 
 char *utf8rus2(char *source)
 {
-  int i,j,k;
-  unsigned char n;
-  char m[2] = { '0', '\0' };
-  strcpy(target, ""); k = strlen(source); i = j = 0;
-  while (i < k) {
-    n = source[i]; i++;
+  int i = 0, j = 0;
+  target[0] = '\0';
+  if (source == NULL) return target;
 
-    if (n >= 127) {
-      switch (n) {
-        case 208: {
-          n = source[i]; i++;
-          if (n == 129) { n = 192; break; } // перекодируем букву Ё
-          break;
+  while (source[i] != '\0' && j < GFX_MAX_STRING) {
+    uint8_t n = (uint8_t)source[i++];
+
+    if (n >= 0x80) {
+      if (n == 0xD0) {
+        if (source[i] == '\0') break;
+        uint8_t n2 = (uint8_t)source[i++];
+        if (n2 == 0x81) { // Ё
+          n = 0xC0;
+        } else if (n2 >= 0x90 && n2 <= 0xBF) { // А..п
+          n = (uint8_t)(n2 - 0x10);
+        } else {
+          n = n2;
         }
-        case 209: {
-          n = source[i]; i++;
-          if (n == 145) { n = 193; break; } // перекодируем букву ё
-          break;
+      } else if (n == 0xD1) {
+        if (source[i] == '\0') break;
+        uint8_t n2 = (uint8_t)source[i++];
+        if (n2 == 0x91) { // ё
+          n = 0xC1;
+        } else if (n2 >= 0x80 && n2 <= 0x8F) { // р..я
+          n = (uint8_t)(n2 + 0x30);
+        } else {
+          n = n2;
         }
       }
     }
 
-    m[0] = n; strcat(target, m);
-    j++; if (j >= 64) break;
+    target[j++] = (char)n;
   }
+  target[j] = '\0';
   return target;
 }
 

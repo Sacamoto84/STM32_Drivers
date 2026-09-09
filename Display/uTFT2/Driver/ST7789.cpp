@@ -137,9 +137,10 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 	if (LCD->Bit == 4) {
 		//Отправляем только пиксели заданного окна.
 		//Старший ниббель - четный x, младший - нечетный (см. SetPixel4)
+		uint32_t stride = ((uint32_t)LCD->TFT_WIDTH + 1) / 2;
 		for (int32_t y = y0; y <= y1; y++) {
 			for (int32_t x = x0; x <= x1; x++) {
-				uint8_t b = LCD->buffer8[y * (LCD->TFT_WIDTH / 2) + x / 2];
+				uint8_t b = LCD->buffer8[y * stride + x / 2];
 				uint16_t c = (x & 1) ? LCD->palete[b & 0x0F] : LCD->palete[b >> 4];
 				LCD->hspi->Instance->DR = c;
 				while (!(LCD->hspi->Instance->SR & SPI_FLAG_TXE));
@@ -298,21 +299,16 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 	}
 
 	//int32_t i = 0;
-	uint8_t HI;
-	uint8_t LO;
-
-	HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-	LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
 	SPI.SendCmd(0x2A);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dx);
-	SPI.SendData(HI);
-	SPI.SendData(LO);
+	SPI.SendData(LCD->dx >> 8);
+	SPI.SendData(LCD->dx & 0xFF);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
 	SPI.SendCmd(0x2B);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
+	SPI.SendData(LCD->dy >> 8);
+	SPI.SendData(LCD->dy & 0xFF);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) >> 8);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) & 0xFF);
 	SPI.SendCmd(0x2C); //Memory write
 
 	SPI.Spi8to16();
@@ -390,21 +386,16 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 	}
 
 	//int32_t i = 0;
-	uint8_t HI;
-	uint8_t LO;
-
-	HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-	LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
 	SPI.SendCmd(0x2A);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dx);
-	SPI.SendData(HI);
-	SPI.SendData(LO);
+	SPI.SendData(LCD->dx >> 8);
+	SPI.SendData(LCD->dx & 0xFF);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
 	SPI.SendCmd(0x2B);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
+	SPI.SendData(LCD->dy >> 8);
+	SPI.SendData(LCD->dy & 0xFF);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) >> 8);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) & 0xFF);
 	SPI.SendCmd(0x2C); //Memory write
 
 	SPI.Spi8to16();
@@ -470,21 +461,16 @@ void TFT_Driver::ST7789_UpdateDMA16bitV2(void) {
 		}
 
 		//int32_t i = 0;
-		uint8_t HI;
-		uint8_t LO;
-
-		HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-		LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
 		SPI.SendCmd(0x2A);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dx);
-		SPI.SendData(HI);
-		SPI.SendData(LO);
+		SPI.SendData(LCD->dx >> 8);
+		SPI.SendData(LCD->dx & 0xFF);
+		SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+		SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
 		SPI.SendCmd(0x2B);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dy);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
+		SPI.SendData(LCD->dy >> 8);
+		SPI.SendData(LCD->dy & 0xFF);
+		SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) >> 8);
+		SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) & 0xFF);
 		SPI.SendCmd(0x2C); //Memory write
 
 		SPI.Spi8to16();
@@ -547,21 +533,16 @@ void TFT_Driver::ST7789_UpdateDMA16bitV3(void) {
 		}
 
 		//int32_t i = 0;
-		uint8_t HI;
-		uint8_t LO;
-
-		HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-		LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
 		SPI.SendCmd(0x2A);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dx);
-		SPI.SendData(HI);
-		SPI.SendData(LO);
+		SPI.SendData(LCD->dx >> 8);
+		SPI.SendData(LCD->dx & 0xFF);
+		SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+		SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
 		SPI.SendCmd(0x2B);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dy);
-		SPI.SendData(0x00);
-		SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
+		SPI.SendData(LCD->dy >> 8);
+		SPI.SendData(LCD->dy & 0xFF);
+		SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) >> 8);
+		SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) & 0xFF);
 		SPI.SendCmd(0x2C); //Memory write
 
 		SPI.Spi8to16();
@@ -642,22 +623,21 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
 	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
 
-	//int32_t i = 0;
-	uint8_t HI;
-	uint8_t LO;
+	if (LCD->GPIO_CS != NULL) {
+		CS_0;
+	}
 
-	HI = (LCD->dx + LCD->TFT_WIDTH - 1) >> 8;
-	LO = (LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF;
+	//int32_t i = 0;
 	SPI.SendCmd(0x2A);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dx);
-	SPI.SendData(HI);
-	SPI.SendData(LO);
+	SPI.SendData(LCD->dx >> 8);
+	SPI.SendData(LCD->dx & 0xFF);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
 	SPI.SendCmd(0x2B);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy);
-	SPI.SendData(0x00);
-	SPI.SendData(LCD->dy + LCD->TFT_HEIGHT - 1);
+	SPI.SendData(LCD->dy >> 8);
+	SPI.SendData(LCD->dy & 0xFF);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) >> 8);
+	SPI.SendData((LCD->dy + LCD->TFT_HEIGHT - 1) & 0xFF);
 	SPI.SendCmd(0x2C); //Memory write
 
 	DATA;
@@ -693,6 +673,10 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_Off(void)
 	spi->CR2 &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
 	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
 	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
+
+	if (LCD->GPIO_CS != NULL) {
+		CS_1;
+	}
 }
 
 #endif /* TFT_Driver_ST7789 */

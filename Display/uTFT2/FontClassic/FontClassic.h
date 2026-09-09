@@ -38,6 +38,13 @@ extern FontDef_t Font_16x26;
 static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t NoBack ) {
 	uint32_t i, b, j;
 
+	if (ch == '\r') return ch;
+	if (ch == '\n') {
+		tft->uTFT.CurrentX = 0;
+		tft->uTFT.CurrentY += Font->FontHeight;
+		return ch;
+	}
+
 	//Символы до пробела не входят в таблицу данных шрифта (индекс < 0),
 	//127 (DEL) - тоже: в таблице 95 глифов (32..126), иначе чтение за границей
 	if ((uint8_t)ch < 32 || (uint8_t)ch > 126) {

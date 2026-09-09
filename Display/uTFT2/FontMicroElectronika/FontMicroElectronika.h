@@ -29,10 +29,10 @@ typedef struct {
 // Устновна фонта
 extern void FontMicroSetFont(FontDefMicroElectronika_t *uFont);
 // Вывод символа
-//extern void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent);
-//extern void FontMicroPuts(TFT * tft, char *str, uint8_t dx, uint8_t transparrent);
+extern void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx = 1, uint8_t transparrent = 0);
+extern void FontMicroPuts(TFT * tft, char *str, uint8_t dx = 1, uint8_t transparrent = 0);
 //Определение длинны строки в пикселях по типу текущего шрифта
-uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t *uFont);
+uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t *uFont, uint8_t dx = 1);
 
 extern FontDefMicroElectronika_t Unispace_10x19;
 extern FontDefMicroElectronika_t Wingdings2_31x26;

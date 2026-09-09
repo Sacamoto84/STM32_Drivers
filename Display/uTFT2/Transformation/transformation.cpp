@@ -17,23 +17,12 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 	if (!getRotatedBounds(tft_src, angle, &min_x, &min_y, &max_x, &max_y))
 		return false;
 
-	//Фиксированный буфер вместо VLA (диагональ экрана + запас)
-	#define TFT_ROT_LINE_BUF_MAX 1024
-	if (max_x - min_x + 1 > TFT_ROT_LINE_BUF_MAX) return false;
-	static uint16_t sline_buffer[TFT_ROT_LINE_BUF_MAX];
-
 	int32_t xt = min_x - tft->_xPivot;
 	int32_t yt = min_y - tft->_yPivot;
 
 	uint32_t xe = (tft_src->LCD->TFT_WIDTH)  << FP_SCALE;
 	uint32_t ye = (tft_src->LCD->TFT_HEIGHT) << FP_SCALE;
-	uint16_t tpcolor = transp;  // convert to unsigned
-
-	//if (_bpp == 4) tpcolor = _colorMap[transp & 0x0F];
-
-	//Цвет прозрачности сравнивается с "сырыми" пикселями buffer16,
-	//которые хранятся в нативном RGB565 (см. SetPixel16) - свап не нужен.
-	//Старый byteswap ломал сравнение: прозрачность никогда не срабатывала.
+	uint16_t tpcolor = (uint16_t)transp;  // convert to unsigned
 
 	// Scan destination bounding box and fetch transformed pixels from source Sprite
 	for (int32_t y = min_y; y <= max_y; y++, yt++) {
@@ -45,44 +34,15 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 		while ((xs >= xe || ys >= ye) && x < max_x) {	x++; xs += _cosra; ys += _sinra; }
 		if (x == max_x)	continue;
 
-		uint32_t pixel_count = 0;
-		uint16_t *pd;
 		do {
-			uint16_t rp;
 			int32_t xp = xs >> FP_SCALE;
 			int32_t yp = ys >> FP_SCALE;
 
-			//if (_bpp == 16)
-			//{
-			pd = &tft_src->LCD->buffer16[0] + xp + (yp * tft_src->LCD->TFT_WIDTH);
-			rp = *pd;//TFT_dest->GetPixel(xp, yp);//*pd;
-			//}
-			//else
-			//  { rp = readPixel(xp, yp); rp = rp>>8 | rp<<8; }
-
-			if (tpcolor == rp) {
-				if (pixel_count) {
-					for (uint16_t i = 0; i < pixel_count; i++)
-						tft->SetPixel(x-pixel_count+i, y, sline_buffer[i]);
-					pixel_count = 0; //СБРОС: без него буфер строки переполнялся
-				}
-			} else {
-				sline_buffer[pixel_count++] = rp;
+			uint16_t rp = tft_src->LCD->buffer16[xp + (yp * tft_src->LCD->TFT_WIDTH)];
+			if (rp != tpcolor) {
+				tft->SetPixel(x, y, rp);
 			}
-		}
-
-		while (++x < max_x && (xs += _cosra) < xe && (ys += _sinra) < ye);
-		if (pixel_count) {
-			// TFT window is already clipped, so this is faster than pushImage()
-			//_tft->setWindow(x - pixel_count, y, x, y);
-			//_tft->pushPixels(sline_buffer, pixel_count);
-			//uint16_t *p;
-			//p = &LCD->buffer16[0] + x - pixel_count + y * LCD->TFT_WIDTH;
-			for (uint16_t i = 0; i < pixel_count; i++)
-				//*p++ = sline_buffer[i];
-				tft->SetPixel(x-pixel_count+i, y, sline_buffer[i]);
-
-		}
+		} while (++x < max_x && (xs += _cosra) < xe && (ys += _sinra) < ye);
 	}
 
 	return true;
@@ -188,8 +148,13 @@ void transformation::scroll(int16_t dx, int16_t dy)
 	        int32_t toy   = (int32_t)(typ / _iwidth);
 	        int32_t fromx = (int32_t)(fyp % _iwidth);
 	        int32_t fromy = (int32_t)(fyp / _iwidth);
-	        for (uint32_t i = 0; i < w; i++)
-	          tft->SetPixel(tox + (int32_t)i, toy, tft->GetPixel(fromx + (int32_t)i, fromy));
+	        if (fromx < tox) {
+	          for (int32_t i = (int32_t)w - 1; i >= 0; i--)
+	            tft->SetPixel(tox + i, toy, tft->GetPixel(fromx + i, fromy));
+	        } else {
+	          for (uint32_t i = 0; i < w; i++)
+	            tft->SetPixel(tox + (int32_t)i, toy, tft->GetPixel(fromx + (int32_t)i, fromy));
+	        }
 	        typ += iw;
 	        fyp += iw;
 	      }
@@ -268,37 +233,29 @@ void transformation::getRotatedBounds(int16_t angle, int16_t w, int16_t h, int16
 	int16_t y3 = h * cosa + xp * sina;
 
 	// Find bounding box extremes, enlarge box to accomodate rounding errors
-	*min_x = x0 - 2;
-	if (x1 < *min_x)
-		*min_x = x1 - 2;
-	if (x2 < *min_x)
-		*min_x = x2 - 2;
-	if (x3 < *min_x)
-		*min_x = x3 - 2;
+	int16_t mnx = x0;
+	if (x1 < mnx) mnx = x1;
+	if (x2 < mnx) mnx = x2;
+	if (x3 < mnx) mnx = x3;
+	*min_x = mnx - 2;
 
-	*max_x = x0 + 2;
-	if (x1 > *max_x)
-		*max_x = x1 + 2;
-	if (x2 > *max_x)
-		*max_x = x2 + 2;
-	if (x3 > *max_x)
-		*max_x = x3 + 2;
+	int16_t mxx = x0;
+	if (x1 > mxx) mxx = x1;
+	if (x2 > mxx) mxx = x2;
+	if (x3 > mxx) mxx = x3;
+	*max_x = mxx + 2;
 
-	*min_y = y0 - 2;
-	if (y1 < *min_y)
-		*min_y = y1 - 2;
-	if (y2 < *min_y)
-		*min_y = y2 - 2;
-	if (y3 < *min_y)
-		*min_y = y3 - 2;
+	int16_t mny = y0;
+	if (y1 < mny) mny = y1;
+	if (y2 < mny) mny = y2;
+	if (y3 < mny) mny = y3;
+	*min_y = mny - 2;
 
-	*max_y = y0 + 2;
-	if (y1 > *max_y)
-		*max_y = y1 + 2;
-	if (y2 > *max_y)
-		*max_y = y2 + 2;
-	if (y3 > *max_y)
-		*max_y = y3 + 2;
+	int16_t mxy = y0;
+	if (y1 > mxy) mxy = y1;
+	if (y2 > mxy) mxy = y2;
+	if (y3 > mxy) mxy = y3;
+	*max_y = mxy + 2;
 
 	_sinra = round(sina * (1 << FP_SCALE));
 	_cosra = round(cosa * (1 << FP_SCALE));

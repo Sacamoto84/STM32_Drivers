@@ -1,6 +1,6 @@
 #include "FontMicroElectronika.h"
 
-FontDefMicroElectronika_t Font;
+static FontDefMicroElectronika_t Font;
 
 // Устновна фонта
 void FontMicroSetFont(FontDefMicroElectronika_t * uFont) {
@@ -72,6 +72,7 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 	for (i = 0; i < *offset; i++) {
 		for (j = 0; j <= Height / 8; j++) {
 			for (index = 0; index < 8; index++) {
+				if (j * 8 + index >= Height) break;
 				temp = *p;
 				if ((temp >> index) & 0x01) {
 					tft->SetPixel(tft->uTFT.CurrentX + i, (tft->uTFT.CurrentY + j * 8 + index),
@@ -97,7 +98,7 @@ void FontMicroPuts(TFT * tft, char *str, uint8_t dx, uint8_t transparrent) {
 }
 
 //Определение длинны строки в пикселях по типу текущего шрифта
-uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
+uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont, uint8_t dx)
 {
 	const uint8_t *p;
 
@@ -113,7 +114,7 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 
 		//Символ вне таблиц шрифта - ширина одного столбца
 		if (ch < 32) {
-			lenSum += 1;
+			lenSum += dx;
 			continue;
 		}
 
@@ -123,7 +124,7 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 					* uFont->FontWidthEng + (ch - 32);
 		} else if (ch >= 0xC0) { //RUS
 			if (uFont->dataRus == NULL) {
-				lenSum += 1;
+				lenSum += dx;
 				continue;
 			}
 			p = uFont->dataRus;
@@ -131,14 +132,14 @@ uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t * uFont)
 					* uFont->FontWidthRus + (ch - 0xC0);
 		} else {
 			//0x80..0xBF: спецсимволы cp1251, глифов в шрифте нет
-			lenSum += 1;
+			lenSum += dx;
 			continue;
 		}
 
-		lenSum += *p + 1;
+		lenSum += *p + dx;
 
 	}
-	if (lenSum) lenSum -= 1;
+	if (lenSum >= dx) lenSum -= dx;
 
 	return lenSum;
 }

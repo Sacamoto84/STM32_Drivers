@@ -143,7 +143,10 @@ static int Font_Smooth_loadMetrics(uint16_t gCount) {
 	//Проверка выделения памяти
 	if (gUnicode == NULL || gHeight == NULL || gWidth == NULL ||
 		gxAdvance == NULL || gdY == NULL || gdX == NULL || gBitmap == NULL)
+	{
+		Font_Smooth_unloadFont();
 		return 0;
+	}
 
 	uint16_t gNum = 0;
 
@@ -310,7 +313,7 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 #endif
 							}
 							else
-								tft->LineHW16(xs, y + cy, dl, fg);
+								tft->LineHW(xs, y + cy, dl, fg);
 
 							dl = 0;
 						}
@@ -343,13 +346,13 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 
 				} else {
 					if (dl) {
-						tft->LineHW16(xs, y + cy, dl, fg);
+						tft->LineHW(xs, y + cy, dl, fg);
 						dl = 0;
 					}
 				}
 			}
 			if (dl) {
-				tft->LineHW16(xs, y + cy, dl, fg);
+				tft->LineHW(xs, y + cy, dl, fg);
 				dl = 0;
 			}
 		}

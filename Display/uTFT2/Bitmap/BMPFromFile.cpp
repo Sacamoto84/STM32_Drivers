@@ -7,7 +7,7 @@
 void BMPFromFile(TFT * tft, int32_t x0, int32_t y0, const char * Name)
 {
 	uint8_t bmp_header_buffer[54]; //Буфер заголовка
-	uint8_t lineBuf[4096];         //Буфер строки картинки
+	static uint8_t lineBuf[4096] __attribute__((aligned(4))); //Буфер строки картинки
 	UINT bytesread;
 
 	uint32_t offBits, width, height, clrUsed;

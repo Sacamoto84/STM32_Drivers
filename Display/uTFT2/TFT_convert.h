@@ -17,9 +17,8 @@ static inline void ConvertStringDosTo1251 ( char *str )
 			0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, // 60 - 6F
 			0xA8, 0xB8, 0xAA, 0xBA, 0xAF, 0xDF, 0xA1, 0xA2, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF  // 70 - 7F
 	};
-	int i;
 
-	for ( i = 0; i < (int)strlen ( str ); i ++ )
+	for ( int i = 0; str[i] != '\0'; i++ )
 		if ( (uint8_t)str [ i ] > 127 )
 			str [ i ] = table [ (uint8_t)str [ i ] - 128 ];
 } // ConvertStringDosTo1251
@@ -38,8 +37,7 @@ static inline void ConvertString1251ToDos ( char *str )
 			0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF  // 70 - 7F
 	};
 
-	int i;
-	for ( i = 0; i < (int)strlen ( str ); i++ ){
+	for ( int i = 0; str[i] != '\0'; i++ ){
 		if ( (uint8_t)str [ i ] > 127 )
 			str [ i ] = table [ (uint8_t)str [ i ] - 128 ];}
 
@@ -54,7 +52,7 @@ static inline void ConvertString1251ToUTF8 ( char *in_str, char *out_str )
 	uint16_t charUTF8;
     char * pUTF8 = out_str;
 
-	for ( uint16_t i = 0; i < strlen ( in_str ); i++ ){
+	for ( uint16_t i = 0; in_str[i] != '\0'; i++ ){
 
 		if ((uint8_t)in_str [ i ] <= 127)
 		{
@@ -63,8 +61,12 @@ static inline void ConvertString1251ToUTF8 ( char *in_str, char *out_str )
 		else
 		{
 			charUTF8 = C1251toUTF8(in_str[i]);
-			*pUTF8++ = (char)(charUTF8 >> 8);
-			*pUTF8++ = (char)(charUTF8 & 0xFF);
+			if (charUTF8 > 0xFF) {
+				*pUTF8++ = (char)(charUTF8 >> 8);
+				*pUTF8++ = (char)(charUTF8 & 0xFF);
+			} else {
+				*pUTF8++ = (char)charUTF8;
+			}
 		}
 	}
 	*pUTF8 = 0;

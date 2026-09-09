@@ -26,7 +26,7 @@ void BitmapFromFlash16b(TFT * tft, int16_t X, int16_t Y, Bitmap *bmp) {
 	for (int32_t pY = y0; pY < y1; pY++) {
 		const uint16_t *src = p16;
 		p16 += bmp->W;
-		uint16_t *dst = &tft->LCD->buffer16[pY * W];
+		uint16_t *dst = &tft->LCD->buffer16[pY * W + x0];
 		for (int32_t pX = x0; pX < x1; pX++)
 			*dst++ = *src++;
 	}

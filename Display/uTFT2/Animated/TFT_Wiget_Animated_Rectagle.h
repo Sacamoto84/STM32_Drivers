@@ -58,9 +58,9 @@ public:
     	  if (typeAnimation == 0){  tft->RectangleFilled(x, y, (uint16_t)(W*elapsedTimeRate), H, color);  }
 
     	  if (typeAnimation == 1){
-              for(int i = y; i< y+H; i++){
-    		    tft->LineH(i, x + W/2-(elapsedTimeRate*W)/2,  x + W/2,  color);}
-    		  tft->RectangleFilled(x + W/2, y, (uint16_t)((W*elapsedTimeRate)/2), H, color);  }
+    		  uint16_t curW = (uint16_t)(W * elapsedTimeRate);
+    		  tft->RectangleFilled(x + (W - curW) / 2, y, curW, H, color);
+    	  }
 
     	  if (typeAnimation == 2){
               uint16_t col = tft->GetPixel(x, y);
@@ -89,10 +89,8 @@ public:
 
     	  if (typeAnimation == 1)
     	  {
-              for(int i = y; i< y+H; i++)
-    		    tft->LineH(i, x + W/2-(elapsedTimeRate*W)/2,  x + W/2-1,  color);
-
-    		  tft->RectangleFilled(x + W/2, y, (uint16_t)((W*elapsedTimeRate)/2), H, color);
+    		  uint16_t curW = (uint16_t)(W * elapsedTimeRate);
+    		  tft->RectangleFilled(x + (W - curW) / 2, y, curW, H, color);
     	  }
 
     	  if (typeAnimation == 2)
@@ -105,13 +103,6 @@ public:
 
     	  _needUpdate = 1;
     	}
-
-
-       if ((P == 0) && (_select == 1))
-       {
-	     tft->RectangleFilled(x, y, W, H, color);
-    	 _needUpdate = 1;
-       }
 
     }
 

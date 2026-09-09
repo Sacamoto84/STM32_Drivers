@@ -16,6 +16,14 @@ extern "C" {
 
 #include "TFT_config.h"
 
+//Если в TFT_config.h не выбрана ни одна глубина цвета - доступны все варианты (выбор по LCD->Bit)
+#if !defined(TFT_USE_1BIT) && !defined(TFT_USE_4BIT) && !defined(TFT_USE_8BIT) && !defined(TFT_USE_16BIT)
+  #define TFT_USE_1BIT
+  #define TFT_USE_4BIT
+  #define TFT_USE_8BIT
+  #define TFT_USE_16BIT
+#endif
+
 #define ABS(x)   ((x) > 0 ? (x) : -(x))
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 

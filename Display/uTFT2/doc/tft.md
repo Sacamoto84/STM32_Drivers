@@ -1,69 +1,117 @@
-### ✨ [top](../README.md)
+### 🏠 [← На главную](../README.md)
 
+# Справочник API ядра (`TFT.h`)
+
+Класс `TFT` предоставляет высокоуровневый интерфейс для рисования графических примитивов, работы с цветом, шрифтами и буферами спрайтов. Все методы работают непосредственно с памятью фреймбуфера экрана.
+
+---
+
+## 1. Инициализация и управление буфером
+
+| Метод | Описание |
+| :--- | :--- |
+| `void init(TFT_LCD_t *LCD)` | Привязка дескриптора экрана к объекту класса и инициализация оборудования дисплея. |
+| `void Fill(uint16_t color)` | Заливка всего экрана цветом с учетом текущей цветности (`LCD->Bit`). |
+| `void Fill1(uint16_t color)` | Быстрая очистка/заливка для 1-битного режима (монохром). |
+| `void Fill4(uint16_t color)` | Быстрая заливка для 4-битного режима (с учетом шага строки *stride*). |
+| `void Fill8(uint16_t color)` | Быстрая заливка для 8-битного режима. |
+| `void Fill16(uint16_t color)`| Заливка 16-битного буфера RGB565. |
+
+---
+
+## 2. Работа с отдельными пикселями
+
+Все методы пикселей выполняют проверку границ экрана `[0..TFT_WIDTH-1] x [0..TFT_HEIGHT-1]`.
+
+* `void SetPixel(int32_t x, int32_t y, uint16_t color)` — универсальная установка цвета пикселя с автоматическим выбором метода по глубине цвета.
+* `void SetPixel1(int32_t x, int32_t y, uint16_t color)` — побитовая установка для 1-битного буфера.
+* `void SetPixel4(int32_t x, int32_t y, uint16_t color)` — установка ниббла 4-битного буфера с шагом строки `stride = (W + 1) / 2`.
+* `void SetPixel8(int32_t x, int32_t y, uint16_t color)` — прямая запись байта в 8-битный буфер.
+* `void SetPixel16(int32_t x, int32_t y, uint16_t color)` — прямая запись 16-битного слова RGB565.
+* `uint16_t GetPixel(int32_t x, int32_t y)` — чтение цвета пикселя из фреймбуфера.
+
+---
+
+## 3. Линии и контуры
+
+| Метод | Описание |
+| :--- | :--- |
+| `void Line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t c)` | Отрезок под произвольным углом (алгоритм Брезенхема) с отсечением по границам экрана. |
+| `void LineV(int32_t x, int32_t y1, int32_t y2, uint16_t color)` | Быстрая вертикальная линия. Автоматически упорядочивает координаты (`y1 <= y2`). |
+| `void LineH(int32_t y, int32_t x1, int32_t x2, uint16_t color)` | Быстрая горизонтальная линия с клиппингом для всех битностей (1, 4, 8, 16 бит). |
+| `void LineH16(int32_t y, int32_t x1, int32_t x2, uint16_t color)` | Горизонтальная линия только для 16-битного буфера. |
+| `void LineHW(int32_t x, int32_t y, int32_t w, uint16_t color)` | Горизонтальная линия, заданная координатой начала `x, y` и длиной `w`. |
+| `void LineHW16(int32_t x, int32_t y, int32_t w, uint16_t color)` | Горизонтальная линия `x, y, w` только для 16-битного буфера. |
+| `void LineMoveXY(int32_t x, int32_t y)` | Запомнить текущую координату для полилинии (без отрисовки). |
+| `void LineMoveTo(int32_t x, int32_t y, uint16_t c)` | Нарисовать линию из предыдущей точки в точку `x, y` и обновить текущую позицию. |
+
+---
+
+## 4. Прямоугольники и области
+
+```cpp
+void Rectangle(int32_t x, int32_t y, uint16_t w, uint16_t h, uint16_t c);
 ```
-Fill   (u16 color)
-Fill1  (u16 color)
-Fill4  (u16 color)
-Fill8  (u16 color)
-Fill16 (u16 color)
+Отрисовка контура прямоугольника шириной `w` и высотой `h`.
+
+```cpp
+void RectangleFilled(int32_t x, int32_t y, uint16_t w, uint16_t h, uint16_t c);
+```
+Заливка прямоугольника. Аргументы `x, y` знаковые (`int32_t`), реализован полный 4-сторонний клиппинг против отрицательных координат и выхода за пределы экрана. Для 8-битного режима используется построчный `memset`.
+
+```cpp
+void InvertRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+```
+Инверсия цветов в прямоугольной области (логическое `!` для 1-битного режима, побитовое `~` для цветных режимов). Порядок обхода оптимизирован построчно.
+
+```cpp
+void ChangeColorRectangle(int32_t x, int32_t y, uint32_t w, int32_t h, uint16_t sColor, uint16_t dColor);
+```
+Замена всех пикселей исходного цвета `sColor` на цвет `dColor` внутри прямоугольника.
+
+---
+
+## 5. Окружности и треугольники
+
+* `void Circle(int16_t x0, int16_t y0, int16_t r, uint16_t c)` — контур окружности радиуса `r` с центром `x0, y0`.
+* `void CircleFilled(int16_t x0, int16_t y0, int16_t r, uint16_t c)` — сплошной круг с ускоренной заливкой через горизонтальные отрезки `LineH`.
+* `void Triangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)` — контур треугольника по 3 вершинам.
+* `void TriangleFilled(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, uint16_t color)` — залитый треугольник.
+
+---
+
+## 6. Градиенты и смешивание цветов (16 бит)
+
+```cpp
+void Gradient_Vertical(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h,
+                       uint8_t otR, uint8_t otG, uint8_t otB,
+                       uint8_t doR, uint8_t doG, uint8_t doB);
+```
+Плавная вертикальная интерполяция цвета сверху вниз от RGB `(otR, otG, otB)` к RGB `(doR, doG, doB)`.
+
+```cpp
+uint16_t alphaBlend(uint8_t alpha, uint16_t fColor, uint16_t bColor);
+```
+Аппаратно-оптимизированное смешивание цветов переднего плана (`fColor`) и фона (`bColor`) по значению непрозрачности `alpha` (`0` = фон, `255` = передний план).
+
+---
+
+## 7. Спрайты и текстовый курсор
+
+```cpp
+void copy(TFT *src, int32_t x, int32_t y);
+```
+Копирование всего содержимого спрайта/экрана `src` в текущий экран по координатам `x, y` с отсечением невидимых частей.
+
+```cpp
+void copyTr(TFT *src, int32_t x, int32_t y, uint16_t trColor);
+```
+Копирование спрайта с пропуском пикселей прозрачного ключевого цвета `trColor`.
+
+```cpp
+void SetFontColor(uint16_t Color, uint16_t BColor); // Установка цвета текста и цвета фона
+void SetColor(uint16_t Color);                      // Установка цвета текста
+void SetBColor(uint16_t BColor);                    // Установка цвета фона
+void GotoXY(int16_t x, int16_t y);                  // Перемещение курсора вывода текста
 ```
 
-```
-SetPixel   (i32 x, i32 y, u16 color)
-SetPixel1  (i32 x, i32 y, u16 color)
-SetPixel4  (i32 x, i32 y, u16 color)
-SetPixel8  (i32 x, i32 y, u16 color)
-SetPixel16 (i32 x, i32 y, u16 color)
-```
-
-------------------------------------------------------------
-Примитивы
-------------------------------------------------------------
-```
-Line       (i32 x0, i32 y0, i32 x1, i32 y1, ui16 c)
-LineV      (i32 X, i32 Y1, i32 Y2, u16 color)        Вертикальная линия   Y2>=Y1   [*]
-LineH      (i32 Y, i32 X1, i32 X2, u16 color)        Горизонтальная линия X2>=X1   [*]
-LineH16    (i32 Y, i32 X1, i32 X2, u16 color)        Горизонтальная линия X2>=X1   [16]
-LineHW     (i32 x, i32 y, i32 w, u16 color)          Горизонтальная линия w-ширина
-LineHW16   (i32 x, i32 y, i32 w, u16 color)          Горизонтальная линия w-ширина [16]
-
-LineMoveXY (i32 x, i32 y)                            Установка начала линии, только координата 
-LineMoveTo (i32 x, i32 y, u16 c)                     Линия к точке xy от прошлой  координаты [*]
-```
-
-```
-Rectangle(i32 x, i32 y, u16 w, u16 h, u16 c)
-RectangleFilled(u16 x, u16 y, u16 w, u16 h, u16 c)
-InvertRectangle(u16 x, u16 y, u16 w, u16 h)
-ChangeColorRectangle(i32 x, i32 y, u32 w, i32 h, u16 sC, u16 dC) Замена цвета sC -> dC
-```
-
-
-```
-Circle       (i16 x0, i16 y0, i16 r, u16 c)
-CircleFilled (i16 x0, i16 y0, i16 r, u16 c)
-```
-
-```
-Triangle       (u16 x1, u16 y1, u16 x2, u16 y2,	u16 x3, u16 y3, u16 color)
-TriangleFilled (i16 x1, i16 y1, i16 x2, i16 y2,	i16 x3, i16 y3, u16 color)
-```
-
-```
-Только 16 бит
-//tft.Gradient_Vertical(0, 0, 239, 239, 0x26, 0x4d, 0x59, 0x43, 0x97, 0x8d);
-//tft.Gradient_Vertical(0, 0, 239, 239, 0x68, 0x82, 0xa0, 0x2c, 0x69, 0x75);
-//tft.Gradient_Vertical(0, 0, 239, 239, 0x26, 0x4d, 0x59, 0x2c, 0x69, 0x75);
-
-Gradient_Vertical(u32 x0, u32 y0, u32 w, u32 h, u8 otR, u8 otG, u8 otB, u8 doR, u8 doG, u8 doB) [16]
-```
-------------------------------------------------------------
-
-Для работы фонтов
-------------------------------------------------------------
-```
-SetFontColor (u16 Color, u16 BColor)
-SetColor     (u16 Color)
-SetBColor    (u16 BColor)
-GotoXY       (i16 x, i16 y)
-```

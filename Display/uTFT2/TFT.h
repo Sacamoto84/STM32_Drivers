@@ -5,6 +5,7 @@
 #include "TFT_define.h"
 
 #include "Driver/TFT_Driver.h"
+#include <string.h>
 
 #ifdef __cplusplus
 
@@ -116,8 +117,7 @@ public:
 
 	// ----- Rectagle.cpp ----
 	void Rectangle(i32 x, i32 y, u16 w, u16 h, u16 c);
-	void RectangleFilled(u16 x, u16 y, u16 w, u16 h,
-			u16 c);
+	void RectangleFilled(i32 x, i32 y, u16 w, u16 h, u16 c);
 	void InvertRectangle(u16 x, u16 y, u16 w, u16 h);
 	//Замена цветов в данном прямоугольнике
 	void ChangeColorRectangle(i32 x, i32 y, u32 w, i32 h, u16 sColor, u16 dColor);
@@ -153,32 +153,45 @@ public:
 //	//Альфа и транспарент
 //Скопировать изображение с другого экрана
 	void copy(TFT *_tft, int16_t x, int16_t y) {
-		i32 x1, x2, y1, y2;
-		x1 = constrain(x, 0, LCD->TFT_WIDTH);
-		x2 = constrain(x + _tft->LCD->TFT_WIDTH, 0, LCD->TFT_WIDTH);
-		y1 = constrain(y, 0, LCD->TFT_HEIGHT);
-		y2 = constrain(y + _tft->LCD->TFT_HEIGHT, 0, LCD->TFT_HEIGHT);
+		if (_tft == NULL || _tft->LCD == NULL || LCD == NULL) return;
+		int32_t x1 = constrain(x, 0, LCD->TFT_WIDTH);
+		int32_t x2 = constrain(x + _tft->LCD->TFT_WIDTH, 0, LCD->TFT_WIDTH);
+		int32_t y1 = constrain(y, 0, LCD->TFT_HEIGHT);
+		int32_t y2 = constrain(y + _tft->LCD->TFT_HEIGHT, 0, LCD->TFT_HEIGHT);
+		if (x1 >= x2 || y1 >= y2) return;
 
-		for (i32 i = x1; i < x2; i++) {
-			for (int16_t ii = y1; ii < y2; ii++) {
-				SetPixel(i, ii, _tft->GetPixel(i - x, ii - y));
+		//16-битный быстрый путь: построчный memcpy
+		if (LCD->Bit == 16 && _tft->LCD->Bit == 16 && LCD->buffer16 != NULL && _tft->LCD->buffer16 != NULL) {
+			size_t row_bytes = (size_t)(x2 - x1) * sizeof(uint16_t);
+			for (int32_t row = y1; row < y2; row++) {
+				uint16_t *dst = &LCD->buffer16[row * LCD->TFT_WIDTH + x1];
+				uint16_t *src = &_tft->LCD->buffer16[(row - y) * _tft->LCD->TFT_WIDTH + (x1 - x)];
+				memcpy(dst, src, row_bytes);
+			}
+		} else {
+			//Обход вдоль строк (row-major) дружелюбен к кэшу и памяти
+			for (int32_t row = y1; row < y2; row++) {
+				for (int32_t col = x1; col < x2; col++) {
+					SetPixel(col, row, _tft->GetPixel(col - x, row - y));
+				}
 			}
 		}
 	}
 
 	void copyTr(TFT *_tft, int16_t x, int16_t y, u16 tr_color) {
-		int16_t x1, x2, y1, y2;
-		u16 color;
-		x1 = constrain(x, 0, LCD->TFT_WIDTH);
-		x2 = constrain(x + _tft->LCD->TFT_WIDTH, 0, LCD->TFT_WIDTH);
-		y1 = constrain(y, 0, LCD->TFT_HEIGHT);
-		y2 = constrain(y + _tft->LCD->TFT_HEIGHT, 0, LCD->TFT_HEIGHT);
+		if (_tft == NULL || _tft->LCD == NULL || LCD == NULL) return;
+		int32_t x1 = constrain(x, 0, LCD->TFT_WIDTH);
+		int32_t x2 = constrain(x + _tft->LCD->TFT_WIDTH, 0, LCD->TFT_WIDTH);
+		int32_t y1 = constrain(y, 0, LCD->TFT_HEIGHT);
+		int32_t y2 = constrain(y + _tft->LCD->TFT_HEIGHT, 0, LCD->TFT_HEIGHT);
+		if (x1 >= x2 || y1 >= y2) return;
 
-		for (int16_t i = x1; i < x2; i++) {
-			for (int16_t ii = y1; ii < y2; ii++) {
-				color = _tft->GetPixel(i - x, ii - y);
-				if ( color != tr_color)
-				  SetPixel(i, ii, color);
+		//Обход вдоль строк (row-major)
+		for (int32_t row = y1; row < y2; row++) {
+			for (int32_t col = x1; col < x2; col++) {
+				u16 color = _tft->GetPixel(col - x, row - y);
+				if (color != tr_color)
+					SetPixel(col, row, color);
 			}
 		}
 	}

@@ -61,19 +61,22 @@
   }
 
   //Чтение палитры BMP (BGRA после заголовка) с обнулением хвоста.
+  //Использует переданный scratch-буфер (например lineBuf), не занимая стек.
   //Возвращает 1 при успехе.
-  static inline int BMP_ReadPalette(FIL *file, uint32_t count, uint16_t *pal)
+  static inline int BMP_ReadPalette(FIL *file, uint32_t count, uint16_t *pal,
+                                    uint8_t *tempBuf, uint32_t tempBufSize)
   {
-    uint32_t buf[256];
     UINT rd = 0;
     uint32_t i;
 
-    if (count == 0 || count > 256) return 0;
+    if (count == 0 || count > 256 || tempBuf == NULL || tempBufSize < count * 4) return 0;
     for (i = 0; i < 256; i++) pal[i] = 0;
-    if (f_read(file, buf, count * 4, &rd) != FR_OK || rd != count * 4)
+    if (f_read(file, tempBuf, count * 4, &rd) != FR_OK || rd != count * 4)
       return 0;
-    for (i = 0; i < count; i++)
-      pal[i] = RGB888_RGB565(buf[i]);
+    for (i = 0; i < count; i++) {
+      //BGRA: Red = tempBuf[i*4+2], Green = tempBuf[i*4+1], Blue = tempBuf[i*4]
+      pal[i] = RGB565(tempBuf[i * 4 + 2], tempBuf[i * 4 + 1], tempBuf[i * 4]);
+    }
     return 1;
   }
 
@@ -107,7 +110,7 @@
     if (palBytes != 0) {
       //Палитра расположена сразу после 54-байтового заголовка
       if (f_lseek(file, 54) != FR_OK) return 0;
-      if (BMP_ReadPalette(file, palBytes, pal) == 0) return 0;
+      if (BMP_ReadPalette(file, palBytes, pal, lineBuf, lineBufSize) == 0) return 0;
     }
 
     for (uint32_t row = 0; row < height; row++) {

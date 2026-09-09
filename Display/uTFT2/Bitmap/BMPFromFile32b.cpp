@@ -11,22 +11,13 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 	List_Update_Particle result = {0, 0, 0, 0, 0, 0};
 
 	int res;
-	uint32_t index;
-	uint32_t index_max;
-	int32_t x, y;
-	uint16_t sColor;
-	float    sAlpha_Float, oneminusalpha;
-	uint16_t dColor;
-	uint8_t  sR,sG,sB;
-	uint8_t  dR,dG,dB;
-
 	uint8_t bmp_header_buffer[54]; //Буфер заголовка
 	UINT bytesread;
 
 	uint32_t offBits, width, height, clrUsed;
 	uint16_t bitCount;
 
-	uint8_t BMP_From_File_buf[4096];
+	static uint8_t BMP_From_File_buf[4096] __attribute__((aligned(4)));
 
 	res = f_open(&SDFile, Name, FA_READ);
 
@@ -60,52 +51,51 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 				return result;
 			}
 
-			index_max = (uint32_t)result.H * result.W;
+			uint32_t buf_pos = 0;
+			uint32_t pixels_in_buf = 0;
 
-			for(index = 0; index < index_max; index++)
+			for (int32_t row = 0; row < (int32_t)height; row++)
 			{
-				if (index % 1024 == 0) {
-					//Дочитываем блок; обрабатываем только реально прочитанное
-					if (f_read (&SDFile, &BMP_From_File_buf[0], 4096, &bytesread) != FR_OK)
-						break;
+				int32_t y = (int32_t)height - 1 - row + y0;
+				for (int32_t col = 0; col < (int32_t)width; col++)
+				{
+					if (buf_pos >= pixels_in_buf) {
+						if (f_read(&SDFile, &BMP_From_File_buf[0], 4096, &bytesread) != FR_OK)
+							goto done_draw;
+						pixels_in_buf = bytesread / 4;
+						buf_pos = 0;
+						if (pixels_in_buf == 0)
+							goto done_draw;
+					}
+
+					uint32_t p_offset = buf_pos * 4;
+					buf_pos++;
+
+					uint8_t alpha = BMP_From_File_buf[p_offset + 3];
+					if (alpha == 0) continue;
+
+					int32_t x = col + x0;
+					uint8_t sR, sG, sB;
+					if (swap == 0) {
+						sR = BMP_From_File_buf[p_offset + 2];
+						sG = BMP_From_File_buf[p_offset + 1];
+						sB = BMP_From_File_buf[p_offset];
+					} else {
+						sB = BMP_From_File_buf[p_offset + 2];
+						sG = BMP_From_File_buf[p_offset + 1];
+						sR = BMP_From_File_buf[p_offset];
+					}
+
+					uint16_t fgColor = RGB565(sR, sG, sB);
+					if (alpha == 255) {
+						tft->SetPixel(x, y, fgColor);
+					} else {
+						uint16_t dColor = tft->GetPixel(x, y);
+						tft->SetPixel(x, y, tft->alphaBlend(alpha, fgColor, dColor));
+					}
 				}
-
-				if (bytesread < (index % 1024) * 4 + 4)
-					break;
-
-			    x = (index % width) + x0;
-			    y = (int32_t)height - (index / width) - 1 + y0;
-
-			    sAlpha_Float = BMP_From_File_buf[(index % 1024)*4+3] / 255.0F;
-
-			    if (swap == 0)
-			    {
-				 sR = BMP_From_File_buf[(index % 1024)*4+2];
-				 sG = BMP_From_File_buf[(index % 1024)*4+1];
-				 sB = BMP_From_File_buf[(index % 1024)*4];
-			    }
-			    else
-			    {
-				 sB = BMP_From_File_buf[(index % 1024)*4+2];
-				 sG = BMP_From_File_buf[(index % 1024)*4+1];
-				 sR = BMP_From_File_buf[(index % 1024)*4];
-			    }
-
-				dColor = tft->GetPixel(x, y);
-
-				dR = (dColor & 0xF800) >> 8;
-				dG = (dColor & 0x7E0) >> 3;
-				dB = (dColor & 0x1F) << 3;
-
-				oneminusalpha = 1.0F - sAlpha_Float;
-
-				sR = (uint8_t)((sR * sAlpha_Float) + (oneminusalpha * dR));
-                sG = (uint8_t)((sG * sAlpha_Float) + (oneminusalpha * dG));
-                sB = (uint8_t)((sB * sAlpha_Float) + (oneminusalpha * dB));
-
-			    sColor = RGB565(sR, sG, sB);
-				tft->SetPixel(x, y, sColor);
 			}
+done_draw: ;
 		}
 		else
 		{

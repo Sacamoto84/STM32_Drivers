@@ -39,42 +39,48 @@ enum Ease {
     EASE_IN_OUT_EXPO
 };
 
+#ifndef PI
 #define PI 3.1415926535897932384626433832795
+#endif
 
 class EasingProvider {
 
 private:
 
-    float getPowIn(float elapsedTimeRate, double pow1)
+    static inline float pow_n(float x, int n)
     {
-    	   float r = (float)pow(elapsedTimeRate, pow1);
-           return r;
+        float res = x;
+        for (int i = 1; i < n; i++) res *= x;
+        return res;
     }
 
-
-    float getPowOut(float elapsedTimeRate, double pow1)
+    float getPowIn(float elapsedTimeRate, int p)
     {
-
-        return (float) ((float) 1 - pow(1 - elapsedTimeRate, pow1));
+        return pow_n(elapsedTimeRate, p);
     }
 
-    float getPowInOut(float elapsedTimeRate, double pow1) {
-        float e = elapsedTimeRate * 2;
-        if (e < 1) {
-            return (float) (0.5 * pow(e, pow1));
+    float getPowOut(float elapsedTimeRate, int p)
+    {
+        return 1.0F - pow_n(1.0F - elapsedTimeRate, p);
+    }
+
+    float getPowInOut(float elapsedTimeRate, int p) {
+        float e = elapsedTimeRate * 2.0F;
+        if (e < 1.0F) {
+            return 0.5F * pow_n(e, p);
         }
 
-        return (float) (1 - 0.5 * pow(2 - e, pow1));
+        return 1.0F - 0.5F * pow_n(2.0F - e, p);
     }
 
     float getBackInOut(float elapsedTimeRate, float amount) {
-       amount *= 1.525;
-       float e = elapsedTimeRate * 2;
-       if ((e) < 1) {
-           return (float) (0.5 * (e * e * ((amount + 1) * e - amount)));
+       amount *= 1.525F;
+       float e = elapsedTimeRate * 2.0F;
+       if (e < 1.0F) {
+           return 0.5F * (e * e * ((amount + 1.0F) * e - amount));
        }
        e = elapsedTimeRate * 2.0F - 2.0F;
-       return (float) (0.5 * (e * e * ((amount + 1.0) * e + amount) + 2.0));
+       return 0.5F * (e * e * ((amount + 1.0F) * e + amount) + 2.0F);
    }
 
    float getBounceIn(float elapsedTimeRate)
@@ -83,17 +89,17 @@ private:
    }
 
    float getBounceOut(float elapsedTimeRate) {
-       if (elapsedTimeRate < 1 / 2.75) {
-           return (float) (7.5625 * elapsedTimeRate * elapsedTimeRate);
-        } else if (elapsedTimeRate < 2 / 2.75) {
-     	   float e = elapsedTimeRate -  1.5F / 2.75F;
-            return (float) (7.5625 * e * e + 0.75);
-        } else if (elapsedTimeRate < 2.5 / 2.75) {
-     	   float e = elapsedTimeRate - 2.25 / 2.75;
-            return (float) (7.5625 * e * e + 0.9375);
+       if (elapsedTimeRate < 1.0F / 2.75F) {
+           return 7.5625F * elapsedTimeRate * elapsedTimeRate;
+        } else if (elapsedTimeRate < 2.0F / 2.75F) {
+     	   float e = elapsedTimeRate - 1.5F / 2.75F;
+            return 7.5625F * e * e + 0.75F;
+        } else if (elapsedTimeRate < 2.5F / 2.75F) {
+     	   float e = elapsedTimeRate - 2.25F / 2.75F;
+            return 7.5625F * e * e + 0.9375F;
         } else {
-     	   float e = elapsedTimeRate - 2.625 / 2.75;
-            return (float) (7.5625 * e * e + 0.984375);
+     	   float e = elapsedTimeRate - 2.625F / 2.75F;
+            return 7.5625F * e * e + 0.984375F;
         }
    }
 
@@ -115,19 +121,16 @@ private:
 
    float getElasticInOut(float elapsedTimeRate, double amplitude, double period) {
        double pi2 = PI * 2;
-
        double s = period / pi2 * asin(1.0F / amplitude);
-       
-       float e = elapsedTimeRate * 2.0F;
 
+       float e = elapsedTimeRate * 2.0F;
        if (e < 1.0F) {
-    	   float e = elapsedTimeRate - 1.0F;
-           return (float) (-0.5F * (amplitude * pow(2, 10 * e) * sin((elapsedTimeRate - s) * pi2 / period)));
+           float e2 = e - 1.0F;
+           return (float) (-0.5F * (amplitude * pow(2, 10 * e2) * sin((elapsedTimeRate - s) * pi2 / period)));
        }
 
-       e = elapsedTimeRate - 1.0;
+       e = e - 1.0F;
        return (float) (amplitude * pow(2, -10 * e) * sin((elapsedTimeRate - s) * pi2 / period) * 0.5 + 1.0);
-
    }
 	/**
 	     * @param ease            Easing type

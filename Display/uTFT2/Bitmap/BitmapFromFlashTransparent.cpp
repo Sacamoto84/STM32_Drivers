@@ -68,7 +68,7 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	Bitmap bmp, u
 		for (int32_t pY = y0; pY < y1; pY++) {
 			const uint16_t *src = p16;
 			p16 += bmp.W;
-			uint16_t *dst = &tft->LCD->buffer16[pY * W];
+			uint16_t *dst = &tft->LCD->buffer16[pY * W + x0];
 			for (int32_t pX = x0; pX < x1; pX++) {
 				uint16_t temp = *src++;
 				if (TrColor != temp)

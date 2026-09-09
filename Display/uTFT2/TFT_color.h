@@ -7,7 +7,7 @@
 #endif 
 
 #define convert24to32(x) (((x) | 0xFF000000u))
-#define convert24to16(x) ((((x) & 0x00f80000) >> 19) | (((x) & 0x0000fc00) >> 5) | (((x) & 0x000000f8) << 8))
+#define convert24to16(x) (((((x) >> 19) & 0x1fu) << 11) | ((((x) >> 10) & 0x3fu) << 5) | (((x) >> 3) & 0x1fu))
 #define RGB565(R,G,B)    ((((R) >> 3) << 11) | (((G) >> 2) << 5) | ((B) >> 3))
 
 /*  Colors are 565 RGB (5 bits Red, 6 bits green, 5 bits blue) */
