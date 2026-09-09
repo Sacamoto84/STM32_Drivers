@@ -16,40 +16,86 @@ void TFT_Driver::ST7789_Init(void) {
 		SPI.LCD_Reset();
 	}
 
-	SPI.SendCmd(0x01);   //SWRESET
+	SPI.SendCmd(0x01);   // SWRESET
 	HAL_Delay(150);
 
-	SPI.SendCmd(0x11);   //SLPOUT
-	HAL_Delay(150);
+	SPI.SendCmd(0x11);   // SLPOUT
+	HAL_Delay(120);
 
-	SPI.SendCmd(0x3A);   //COLMOD RGB444(12bit) 0x03, RGB565(16bit) 0x05,
-	SPI.SendData(0x05);  //RGB666(18bit) 0x06
-	SPI.SendCmd(0x36);   //MADCTL
-	SPI.SendData(0x08);  //0x08 B-G-R, 0x14 R-G-B  14
+	// 1. Формат цвета: 16-бит RGB565
+	SPI.SendCmd(0x3A);   // COLMOD
+	SPI.SendData(0x55);  // 16-bit color (0x55)
+	HAL_Delay(10);
 
-	SPI.SendCmd(ST77XX_GAMSET);               // ST77XX_GAMSET         0x26
-	SPI.SendData(0x02); // Gamma curve 2 (G1.8)  ST77XX_DGMEN          0xBA
+	// 2. Порядок цветов и ориентация (0x00 = RGB, 0x08 = BGR)
+	SPI.SendCmd(0x36);   // MADCTL
+	SPI.SendData(0x00);  // RGB color order
 
-	SPI.SendCmd(0xe0);   // Positive Voltage Gamma Control
-	SPI.SendData(0xd0);
+	// 3. Тайминги (Porch control)
+	SPI.SendCmd(0xB2);   // PORCTRL
+	SPI.SendData(0x0C);
+	SPI.SendData(0x0C);
+	SPI.SendData(0x00);
+	SPI.SendData(0x33);
+	SPI.SendData(0x33);
+
+	// 4. Управление напряжениями затворов (VGH / VGL)
+	SPI.SendCmd(0xB7);   // GCTRL
+	SPI.SendData(0x35);  // VGH = 13.26V, VGL = -10.43V
+
+	// 5. Напряжение VCOM (контраст и уровень черного/насыщенность)
+	SPI.SendCmd(0xBB);   // VCOMS
+	SPI.SendData(0x28);  // 0x28 типовое для IPS
+
+	// 6. Управление LCM
+	SPI.SendCmd(0xC0);   // LCMCTRL
+	SPI.SendData(0x2C);
+
+	// 7. Включение управления VDV / VRH
+	SPI.SendCmd(0xC2);   // VDVVRHEN
+	SPI.SendData(0x01);
+
+	// 8. Напряжение VRH (VAP / VAN)
+	SPI.SendCmd(0xC3);   // VRHS
+	SPI.SendData(0x12);  // 4.45V
+
+	// 9. Напряжение VDV
+	SPI.SendCmd(0xC4);   // VDVS
+	SPI.SendData(0x20);
+
+	// 10. Частота кадров (60 Hz)
+	SPI.SendCmd(0xC6);   // FRCTRL2
+	SPI.SendData(0x0F);
+
+	// 11. Управление питанием (Power Control 1)
+	SPI.SendCmd(0xD0);   // PWCTRL1
+	SPI.SendData(0xA4);
+	SPI.SendData(0xA1);
+
+	// 12. Гамма 2.2 по умолчанию
+	SPI.SendCmd(0x26);   // GAMSET
+	SPI.SendData(0x01);  // G2.2
+
+	// 13. Таблицы гамма-коррекции
+	SPI.SendCmd(0xE0);   // Positive Voltage Gamma Control
+	SPI.SendData(0xD0);
 	SPI.SendData(0x04);
 	SPI.SendData(0x0D);
 	SPI.SendData(0x11);
 	SPI.SendData(0x13);
-	SPI.SendData(0x2b);
-	SPI.SendData(0x3f);
+	SPI.SendData(0x2B);
+	SPI.SendData(0x3F);
 	SPI.SendData(0x54);
-	SPI.SendData(0x4c);
+	SPI.SendData(0x4C);
 	SPI.SendData(0x18);
-	SPI.SendData(0x0d);
-	SPI.SendData(0x0b);
-	SPI.SendData(0x1f);
+	SPI.SendData(0x0D);
+	SPI.SendData(0x0B);
+	SPI.SendData(0x1F);
 	SPI.SendData(0x23);
 
-	SPI.SendCmd(0xe1);   // Negative Voltage Gamma Control
-	//See datasheet for more information
-	SPI.SendData(0xd0);
-	SPI.SendData(0x00);
+	SPI.SendCmd(0xE1);   // Negative Voltage Gamma Control
+	SPI.SendData(0xD0);
+	SPI.SendData(0x04);
 	SPI.SendData(0x0C);
 	SPI.SendData(0x11);
 	SPI.SendData(0x13);
@@ -63,21 +109,13 @@ void TFT_Driver::ST7789_Init(void) {
 	SPI.SendData(0x20);
 	SPI.SendData(0x23);
 
+	// 14. Инверсия и включение дисплея
+	SPI.SendCmd(0x21);   // INVON (для IPS экранов)
+	SPI.SendCmd(0x13);   // NORON
+	HAL_Delay(10);
 
-
-
-
-
-	SPI.SendCmd(0x11); // Exit Sleep Mode
-	//HAL_Delay(120);
-	HAL_Delay(350);
-
-	SPI.SendCmd(0x29); // Display on
-	HAL_Delay(350); //HAL_Delay(120);
-
-	SPI.SendCmd(0x21);   //INVON
-	SPI.SendCmd(0x13);   //NORON
-	SPI.SendCmd(0x29);   //DISPON
+	SPI.SendCmd(0x29);   // DISPON (Display on)
+	HAL_Delay(120);
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_1;

@@ -1,3 +1,4 @@
+#pragma once
 #include "gfxfont.h"
 
 const uint8_t CourierCyr12pt8bBitmaps[] PROGMEM = {

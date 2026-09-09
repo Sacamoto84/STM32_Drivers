@@ -161,6 +161,22 @@ public:
 		colorStringln(10, format);
 	}
 
+	template<typename ... Args>
+	void warning(char const *const format, Args const &... args) noexcept { w(format, args ...); }
+	void warning(char const *const format) { w(format); }
+
+	template<typename ... Args>
+	void error(char const *const format, Args const &... args) noexcept { e(format, args ...); }
+	void error(char const *const format) { e(format); }
+
+	template<typename ... Args>
+	void info(char const *const format, Args const &... args) noexcept { i(format, args ...); }
+	void info(char const *const format) { i(format); }
+
+	template<typename ... Args>
+	void successful(char const *const format, Args const &... args) noexcept { s(format, args ...); }
+	void successful(char const *const format) { s(format); }
+
 private:
 #if defined(TIMBER_UART)
 	UART_HandleTypeDef *huart;

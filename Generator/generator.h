@@ -74,18 +74,9 @@ typedef struct {
 class GENERATOR {
 public:
 
-	float convertHzToR(float hz) {
-		hz = hz * 16384.0F / 3.798F * 2.0F;
-		return hz;
-	}
-	float convertHzToR_FM(float hz) {
-		hz = hz * 16384.0F;
-		return hz;
-	}
-	float convertRToHz(float hz) {
-		hz = hz / 16384.0F * 3.798F / 2.0F;
-		return hz;
-	}
+	float convertHzToR(float hz) {	hz = hz * 16384.0F / 3.798F * 2.0F; 	return hz;	}
+	float convertHzToR_FM(float hz) { hz = hz * 16384.0F;	return hz; }
+	float convertRToHz(float hz) {	hz = hz / 16384.0F * 3.798F / 2.0F; 	return hz;	}
 
     //dma_dac_it.c
 
@@ -94,43 +85,19 @@ public:
 	void Create_AM_Modulation(_structure_ch *_CH);
 	void Create_FM_Modulation(_structure_ch *_CH);
 
-	void Create_Carrier1(void)
-	{
-	    Create_Carrier(&CH1);
-	}
+	void Create_Carrier1(void)	{  Create_Carrier(&CH1);  }
+	void Create_Carrier2(void)	{  Create_Carrier(&CH2);  }
 
-	void Create_Carrier2(void)
-	{
-	    Create_Carrier(&CH2);
-	}
+	void Create_AM_Modulation1(void)  {  Create_AM_Modulation(&CH1);  }
+	void Create_AM_Modulation2(void)  {  Create_AM_Modulation(&CH2);  }
 
-	void Create_AM_Modulation1(void)
-	{
-		Create_AM_Modulation(&CH1);
-	}
-	void Create_AM_Modulation2(void)
-	{
-		Create_AM_Modulation(&CH2);
-	}
-
-	void Create_FM_Modulation1(void)
-	{
-		Create_FM_Modulation(&CH1);
-	}
-	void Create_FM_Modulation2(void)
-	{
-		Create_FM_Modulation(&CH2);
-	}
+	void Create_FM_Modulation1(void) {  Create_FM_Modulation(&CH1);  }
+	void Create_FM_Modulation2(void) {  Create_FM_Modulation(&CH2);  }
 
 	void Refresh_FM_Modulation(_structure_ch *_CH); //Для Base Dev без чтения с диска
-	void Refresh_FM_Modulation1(void)
-	{
-		Refresh_FM_Modulation(&CH1);
-	}
-	void Refresh_FM_Modulation2(void)
-	{
-		Refresh_FM_Modulation(&CH2);
-	}
+
+	void Refresh_FM_Modulation1(void)  {  Refresh_FM_Modulation(&CH1); }
+	void Refresh_FM_Modulation2(void)  {  Refresh_FM_Modulation(&CH2); }
 
 
 	void RAW_to_Structure(_structure_ch *_CH);

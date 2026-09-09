@@ -179,9 +179,7 @@ char *utf8rus2(char *source)
         uint8_t n2 = (uint8_t)source[i++];
         if (n2 == 0x81) { // Ё
           n = 0xC0;
-        } else if (n2 >= 0x90 && n2 <= 0xBF) { // А..п
-          n = (uint8_t)(n2 - 0x10);
-        } else {
+        } else {          // А..Я, а..п (глифы 0x90..0xBF)
           n = n2;
         }
       } else if (n == 0xD1) {
@@ -189,9 +187,7 @@ char *utf8rus2(char *source)
         uint8_t n2 = (uint8_t)source[i++];
         if (n2 == 0x91) { // ё
           n = 0xC1;
-        } else if (n2 >= 0x80 && n2 <= 0x8F) { // р..я
-          n = (uint8_t)(n2 + 0x30);
-        } else {
+        } else {          // р..я (глифы 0x80..0x8F)
           n = n2;
         }
       }

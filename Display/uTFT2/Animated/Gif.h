@@ -55,6 +55,7 @@
 #include "fatfs.h"
 
 #include <stdio.h> //snprintf
+#include <stdlib.h> //atoi
 
 //Логирование (опционально, define TFT_USE_TIMBER в TFT_config.h)
 #ifdef TFT_USE_TIMBER
