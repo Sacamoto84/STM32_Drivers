@@ -27,6 +27,11 @@ void video_load(TFT * tft, uint8_t delay)
 	video_stop = 0;                  //Сброс временной переменной
 
 	if (frame_size == 0 || tft->LCD->Bit != 16 || tft->LCD->buffer16 == NULL) return;
+
+#if defined(TFT_DRIVER_ST7789)
+	tft->driver.ST7789_Update_DMA_Cicle_On();    //Запуск кольцевого буфера
+#endif
+
     //11ms delay=0;
 	//─ Цикл ────────────────────────────────────────────────────────────────────┐
 	for(index = 0; index + frame_size <= fsize; index += frame_size){         //│

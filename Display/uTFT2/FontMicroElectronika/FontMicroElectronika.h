@@ -10,10 +10,8 @@
 
 #include "main.h"
 
-#include "stdlib.h"
-#include "string.h"
-
-#include "TFT.h"
+#include <stdlib.h>
+#include <string.h>
 
 ///////////////////////////////////////////////////////////////////
 //  Microelectronika
@@ -26,17 +24,28 @@ typedef struct {
 	const uint8_t *dataRus; /*!< Pointer to data font data array */
 } FontDefMicroElectronika_t;
 
-// Устновна фонта
+#ifdef __cplusplus
+#include "TFT.h"
+
+// Устновка фонта
 extern void FontMicroSetFont(FontDefMicroElectronika_t *uFont);
 // Вывод символа
 extern void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx = 1, uint8_t transparrent = 0);
 extern void FontMicroPuts(TFT * tft, char *str, uint8_t dx = 1, uint8_t transparrent = 0);
-//Определение длинны строки в пикселях по типу текущего шрифта
+//Определение длины строки в пикселях по типу текущего шрифта
 uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t *uFont, uint8_t dx = 1);
+#else
+extern void FontMicroSetFont(FontDefMicroElectronika_t *uFont);
+uint16_t FontMicroFindLenStr(char *str, FontDefMicroElectronika_t *uFont, uint8_t dx);
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern FontDefMicroElectronika_t Unispace_10x19;
 extern FontDefMicroElectronika_t Wingdings2_31x26;
-extern FontDefMicroElectronika_t Courier_12x18; //������� �����
+extern FontDefMicroElectronika_t Courier_12x18;
 extern FontDefMicroElectronika_t Fewture_12x12Eng;
 extern FontDefMicroElectronika_t Arial_Narrow9x15;
 extern FontDefMicroElectronika_t Verdana39x32;
@@ -44,6 +53,8 @@ extern FontDefMicroElectronika_t MicrosoftYaHeiUI24_41x45;
 extern FontDefMicroElectronika_t MicrosoftYaHeiUI12_20x22;
 extern FontDefMicroElectronika_t Microsoft_YaHeiUI16_27x30;
 
-
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FONTMICROELECTRONIKA_FONTMICROELECTRONIKA_H_ */

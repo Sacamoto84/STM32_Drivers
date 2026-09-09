@@ -611,10 +611,10 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 	dma = LCD->hspi->hdmatx->Instance;
 
 	//NDTR DMA 16-битный: кадр больше 65535 слов одним кольцом не передать
-	//(раньше размер молча усекался и поток рассыпался)
 	if ((uint32_t)LCD->TFT_WIDTH * LCD->TFT_HEIGHT > 0xFFFFu) return;
 
 	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA
+	while (dma->CR & DMA_SxCR_EN);
 	while (!(spi->SR & SPI_SR_TXE));    //Ждем окончания передачи по SPI
 	while (spi->SR & SPI_SR_BSY);
 	dma->NDTR = 0;                      //Сброс счетчика DMA
@@ -622,6 +622,7 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 	spi->CR2 &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
 	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
 	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
+	LCD->hspi->State = HAL_SPI_STATE_READY;
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_0;
@@ -644,7 +645,18 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 
 	SPI.Spi8to16();
 
+	if (LCD->hspi->hdmatx != NULL) {
+		__HAL_DMA_CLEAR_FLAG(LCD->hspi->hdmatx, __HAL_DMA_GET_TC_FLAG_INDEX(LCD->hspi->hdmatx));
+		__HAL_DMA_CLEAR_FLAG(LCD->hspi->hdmatx, __HAL_DMA_GET_HT_FLAG_INDEX(LCD->hspi->hdmatx));
+		__HAL_DMA_CLEAR_FLAG(LCD->hspi->hdmatx, __HAL_DMA_GET_TE_FLAG_INDEX(LCD->hspi->hdmatx));
+		__HAL_DMA_CLEAR_FLAG(LCD->hspi->hdmatx, __HAL_DMA_GET_FE_FLAG_INDEX(LCD->hspi->hdmatx));
+		__HAL_DMA_CLEAR_FLAG(LCD->hspi->hdmatx, __HAL_DMA_GET_DME_FLAG_INDEX(LCD->hspi->hdmatx));
+	}
+
 	dma->CR  &= ~DMA_SxCR_EN;                          // DMA
+	while (dma->CR & DMA_SxCR_EN);
+	//Отключаем прерывания от DMA на время кольцевого вывода
+	dma->CR  &= ~(DMA_SxCR_TCIE | DMA_SxCR_HTIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE);
 	dma->NDTR = LCD->TFT_WIDTH * LCD->TFT_HEIGHT;      // Весь фреймбуфер
 	dma->PAR  = (uint32_t)&spi->DR;                    // SPI->DR
 	dma->M0AR = (uint32_t)&LCD->buffer16[0];
@@ -664,6 +676,7 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_Off(void)
 	dma = LCD->hspi->hdmatx->Instance;
 
 	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA
+	while (dma->CR & DMA_SxCR_EN);
 	while (!(spi->SR & SPI_SR_TXE));    //Ждем окончания передачи по SPI
 	while (spi->SR & SPI_SR_BSY);
 	dma->NDTR = 0;                      //Сброс счетчика DMA
@@ -673,6 +686,7 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_Off(void)
 	spi->CR2 &= ~SPI_CR2_TXDMAEN;       //Отвязываем от DMA
 	spi->CR1 &= ~SPI_CR1_DFF;           //8bit mode
 	spi->CR1 |= SPI_CR1_SPE;            //Включаем для работы в обычном режиме
+	LCD->hspi->State = HAL_SPI_STATE_READY;
 
 	if (LCD->GPIO_CS != NULL) {
 		CS_1;

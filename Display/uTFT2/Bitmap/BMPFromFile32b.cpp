@@ -17,7 +17,7 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 	uint32_t offBits, width, height, clrUsed;
 	uint16_t bitCount;
 
-	static uint8_t BMP_From_File_buf[4096] __attribute__((aligned(4)));
+	static uint8_t BMP_From_File_buf[1024] __attribute__((aligned(4)));
 
 	res = f_open(&SDFile, Name, FA_READ);
 
@@ -60,7 +60,7 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 				for (int32_t col = 0; col < (int32_t)width; col++)
 				{
 					if (buf_pos >= pixels_in_buf) {
-						if (f_read(&SDFile, &BMP_From_File_buf[0], 4096, &bytesread) != FR_OK)
+						if (f_read(&SDFile, &BMP_From_File_buf[0], sizeof(BMP_From_File_buf), &bytesread) != FR_OK)
 							goto done_draw;
 						pixels_in_buf = bytesread / 4;
 						buf_pos = 0;
