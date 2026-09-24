@@ -6,6 +6,7 @@
 #include "ILI9225.h"
 
 void TFT_Driver::ILI9225_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+	if (LCD == NULL) return;
 
 	SPI.SendCmd16 (ILI9225_HORIZONTAL_WINDOW_ADDR1);
     SPI.SendData16( x1);
@@ -31,6 +32,16 @@ void TFT_Driver::ILI9225_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16
 
 void TFT_Driver::ILI9225_UpdateScreen(void)
 {
+	if (LCD == NULL) return;
+#if defined(TFT_PLATFORM_STM32)
+	if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
+	if (LCD->Bit == 4 && LCD->buffer8 == NULL) return;
+	if (LCD->Bit == 16 && LCD->buffer16 == NULL) return;
+#else
+	if (LCD->spi == NULL) return;
+	if (LCD->Bit == 4 && LCD->buffer8 == NULL) return;
+	if (LCD->Bit == 16 && LCD->buffer16 == NULL) return;
+#endif
 
 #if defined(TFT_PLATFORM_STM32)
 	if (LCD->GPIO_CS != NULL) {

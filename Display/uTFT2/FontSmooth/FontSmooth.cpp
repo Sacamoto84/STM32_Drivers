@@ -104,6 +104,7 @@ uint32_t readInt32(void) {
 }
 
 void Font_Smooth_Load(const unsigned char *massiv) {
+	if (massiv == NULL) return;
 	Font_Smooth_unloadFont();
 
 	p = massiv;
@@ -270,6 +271,7 @@ bool Font_Smooth_getUnicodeIndex(uint16_t unicode, uint16_t *index) {
 
 //TFT_HEIGHT
 void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
+	if (tft == NULL || tft->LCD == NULL) return;
 
 	const unsigned char *p_gBitmap; //Указатель на графические данные
 	uint8_t pixel;
@@ -394,6 +396,8 @@ void Font_Smooth_drawGlyph(TFT * tft, uint16_t code) {
 
 //Тест вывод на экран всего алфавита
 void Font_Smooth_showFont(TFT * tft, uint32_t _timeDelay) {
+	if (tft == NULL || tft->LCD == NULL) return;
+
 	int16_t cursorX = tft->LCD->TFT_WIDTH; // Force start of new page to initialise cursor
 	int16_t cursorY = tft->LCD->TFT_HEIGHT; // for the first character
 
@@ -427,6 +431,8 @@ void Font_Smooth_showFont(TFT * tft, uint32_t _timeDelay) {
 }
 
 void Font_Smooth_drawStr(TFT * tft, const char *str) {
+	if (tft == NULL || tft->LCD == NULL || str == NULL) return;
+
 	while (*str != 0) {
 		uint16_t code = 0;
 
@@ -444,6 +450,8 @@ void Font_Smooth_drawStr(TFT * tft, const char *str) {
 }
 
 void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str) {
+	if (tft == NULL || tft->LCD == NULL || str == NULL) return;
+
 	tft->uTFT.CurrentX = x;
 	tft->uTFT.CurrentY = y;
 	while (*str != 0) {
@@ -463,6 +471,8 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str) {
 }
 
 void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str, uint16_t color) {
+	if (tft == NULL || tft->LCD == NULL || str == NULL) return;
+
 	tft->uTFT.CurrentX = x;
 	tft->uTFT.CurrentY = y;
 	tft->uTFT.Color = color;
@@ -484,6 +494,8 @@ void Font_Smooth_drawStr(TFT * tft, int x, int y, const char *str, uint16_t colo
 
 //Для поддержки русского шрифта
 void Font_Smooth_drawStr1251(TFT * tft ,int x, int y, const char *str, uint16_t color) {
+	if (tft == NULL || tft->LCD == NULL || str == NULL) return;
+
 	tft->uTFT.CurrentX = x;
 	tft->uTFT.CurrentY = y;
 	tft->uTFT.Color = color;

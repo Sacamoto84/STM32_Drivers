@@ -8,6 +8,8 @@ bool transformation::pushRotated(TFT * tft ,TFT * tft_src, int16_t angle, int32_
 	//Прямое чтение buffer16 источника - поддерживается только 16 бит
 	if (tft_src->LCD->Bit != 16 || tft_src->LCD->buffer16 == NULL) return false;
 
+	this->tft = tft;
+
 	//_xPivot = LCD->TFT_WIDTH / 2;
 	//_yPivot = LCD->TFT_HEIGHT / 2;
 
@@ -190,6 +192,9 @@ void transformation::scroll(int16_t dx, int16_t dy)
 bool transformation::getRotatedBounds(TFT * TFT_src, int16_t angle, int16_t *min_x,
 		int16_t *min_y, int16_t *max_x, int16_t *max_y) {
 
+	if (TFT_src == NULL || TFT_src->LCD == NULL || min_x == NULL || min_y == NULL || max_x == NULL || max_y == NULL)
+		return false;
+
 	//TFT_dest->_xPivot = TFT_dest->LCD->TFT_WIDTH / 2;
 	//TFT_dest->_yPivot = TFT_dest->LCD->TFT_HEIGHT / 2;
 
@@ -198,10 +203,12 @@ bool transformation::getRotatedBounds(TFT * TFT_src, int16_t angle, int16_t *min
 			TFT_src->_xPivot, TFT_src->_yPivot, min_x, min_y, max_x, max_y);
 
 	// Move bounding box so source Sprite pivot coincides with TFT pivot
-	*min_x += tft->_xPivot;
-	*max_x += tft->_xPivot;
-	*min_y += tft->_yPivot;
-	*max_y += tft->_yPivot;
+	int16_t xp = (tft != NULL) ? tft->_xPivot : 0;
+	int16_t yp = (tft != NULL) ? tft->_yPivot : 0;
+	*min_x += xp;
+	*max_x += xp;
+	*min_y += yp;
+	*max_y += yp;
 
 	// Return if bounding box is outside of TFT viewport
 	//if (*min_x > _vpW) return false;

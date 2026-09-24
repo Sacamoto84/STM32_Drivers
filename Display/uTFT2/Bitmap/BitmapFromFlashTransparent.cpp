@@ -4,8 +4,8 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	const Bitmap 
 	if (tft == NULL || tft->LCD == NULL || bmp == NULL) return;
 
 	if (bmp->bit == 1) {
-		const uint8_t *p;
-		p = (uint8_t *)bmp->data;
+		const uint8_t *p = (const uint8_t *)bmp->data;
+		if (p == NULL) return;
 
 		int32_t pX;
 		int32_t pY;
@@ -62,9 +62,10 @@ void BitmapFromFlashTransparent(TFT * tft, uint16_t X, uint16_t Y,	const Bitmap 
 		uint32_t skip_rows = (uint32_t)(y0 - Y);
 
 		//steam16 заполнен getResBitmapID; для вручную собранных Bitmap - data
-		const uint16_t *p16 = ((bmp->steam16 != NULL) ? bmp->steam16
-				: (const uint16_t *)bmp->data)
-				+ skip_rows * bmp->W + skip_cols;
+		const uint16_t *src_base = (bmp->steam16 != NULL) ? bmp->steam16 : (const uint16_t *)bmp->data;
+		if (src_base == NULL) return;
+
+		const uint16_t *p16 = src_base + skip_rows * bmp->W + skip_cols;
 
 		for (int32_t pY = y0; pY < y1; pY++) {
 			const uint16_t *src = p16;

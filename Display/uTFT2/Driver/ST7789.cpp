@@ -155,6 +155,12 @@ void TFT_Driver::ST7789_Update(List_Update_Particle U)
 void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 	if (blockUpdate) return;
+	if (LCD == NULL) return;
+#if defined(TFT_PLATFORM_STM32)
+	if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
+#else
+	if (LCD->spi == NULL) return;
+#endif
 
 	//Клиппинг окна
 	if (x0 < 0) x0 = 0;
@@ -190,6 +196,7 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 #if defined(TFT_PLATFORM_PICO)
 	if (LCD->Bit == 16) {
+		if (LCD->buffer16 == NULL) goto cleanup_pico;
 		if (fullscreen) {
 			spi_write16_blocking(LCD->spi, LCD->buffer16, (size_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH);
 		} else {
@@ -199,6 +206,7 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 			}
 		}
 	} else if (LCD->Bit == 4) {
+		if (LCD->buffer8 == NULL) goto cleanup_pico;
 		uint32_t stride = ((uint32_t)LCD->TFT_WIDTH + 1) / 2;
 		for (int32_t y = y0; y <= y1; y++) {
 			for (int32_t x = x0; x <= x1; x++) {
@@ -208,9 +216,11 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 			}
 		}
 	}
+cleanup_pico:
 	while (spi_get_hw(LCD->spi)->sr & SPI_SSPSR_BSY_BITS);
 #else
 	if (LCD->Bit == 4) {
+		if (LCD->buffer8 == NULL) goto cleanup_stm32;
 		//Отправляем только пиксели заданного окна.
 		//Старший ниббель - четный x, младший - нечетный (см. SetPixel4)
 		uint32_t stride = ((uint32_t)LCD->TFT_WIDTH + 1) / 2;
@@ -219,18 +229,25 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 				uint8_t b = LCD->buffer8[y * stride + x / 2];
 				uint16_t c = (x & 1) ? LCD->palete[b & 0x0F] : LCD->palete[b >> 4];
 				LCD->hspi->Instance->DR = c;
-				while (!(LCD->hspi->Instance->SR & SPI_FLAG_TXE));
+				uint32_t wait_start = HAL_GetTick();
+				while ((LCD->hspi->Instance->SR & SPI_FLAG_TXE) == 0) {
+					if (HAL_GetTick() - wait_start > 50) break;
+				}
 			}
 		}
 	}
 
 	if (LCD->Bit == 16) {
+		if (LCD->buffer16 == NULL) goto cleanup_stm32;
 		if (fullscreen)
 		{
 			int count = (LCD->TFT_HEIGHT * LCD->TFT_WIDTH);
 			for (i = 0; i < count; i++) {
-			  while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
-			  LCD->hspi->Instance->DR = LCD->buffer16[i];
+				LCD->hspi->Instance->DR = LCD->buffer16[i];
+				uint32_t wait_start = HAL_GetTick();
+				while ((LCD->hspi->Instance->SR & SPI_SR_TXE) == 0) {
+					if (HAL_GetTick() - wait_start > 50) break;
+				}
 			}
 		}
 		else
@@ -242,12 +259,17 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 				for(ii = x0 ;  ii <= x1 ; ii++)
 				{
-					while (!(LCD->hspi->Instance->SR & SPI_SR_TXE));
 					LCD->hspi->Instance->DR = *p++;
+					uint32_t wait_start = HAL_GetTick();
+					while ((LCD->hspi->Instance->SR & SPI_SR_TXE) == 0) {
+						if (HAL_GetTick() - wait_start > 50) break;
+					}
 				}
 			}
 		}
 	}
+
+cleanup_stm32:
 
 	//Ждем фактического завершения передачи (TXE + BSY),
 	//иначе переключение DFF/выключение SPI оборвет последнее слово
@@ -356,7 +378,9 @@ static uint16_t DMA_line_buffer1[TFT_DMA_LINE_BUF_MAX];
 //Возвращает статус HAL: при ошибке (HAL_BUSY и т.п.) передача не начата,
 //вызывающий обязан завершить обновление, не зависая в ожидании флага.
 HAL_StatusTypeDef TFT_Driver::ST7789_DMA_WaitAndSend(uint16_t *line) {
+	if (LCD == NULL || line == NULL) return HAL_ERROR;
 #if defined(TFT_PLATFORM_STM32)
+	if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return HAL_ERROR;
 	uint32_t wait_start = HAL_GetTick();
 	while (DMA_TX_Complete == 0) {
 		if (HAL_GetTick() - wait_start > 100) {
@@ -368,6 +392,7 @@ HAL_StatusTypeDef TFT_Driver::ST7789_DMA_WaitAndSend(uint16_t *line) {
 	DMA_TX_Complete = 0;
 	return HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)line, LCD->TFT_WIDTH);
 #else
+	if (LCD->spi == NULL) return HAL_ERROR;
 	if (dma_channel < 0) {
 		dma_channel = dma_claim_unused_channel(true);
 	}
@@ -393,6 +418,7 @@ HAL_StatusTypeDef TFT_Driver::ST7789_DMA_WaitAndSend(uint16_t *line) {
 void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 
 	if (blockUpdate) return;
+	if (LCD == NULL || LCD->buffer8 == NULL) return;
 
 	needUpdate = 0;
 
@@ -484,6 +510,7 @@ void TFT_Driver::ST7789_UpdateDMA4bitV2(void) {
 void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 
 	if (blockUpdate) return;
+	if (LCD == NULL || LCD->buffer8 == NULL) return;
 
 	needUpdate = 0;
 
@@ -571,6 +598,7 @@ void TFT_Driver::ST7789_UpdateDMA8bitV2(void) {
 void TFT_Driver::ST7789_UpdateDMA16bitV2(void) {
 
 	if (blockUpdate) return;
+	if (LCD == NULL || LCD->buffer16 == NULL) return;
 
 	    needUpdate = 0;
 
@@ -659,6 +687,7 @@ void TFT_Driver::ST7789_UpdateDMA16bitV2(void) {
 void TFT_Driver::ST7789_UpdateDMA16bitV3(void) {
 
 	if (blockUpdate) return;
+	if (LCD == NULL || LCD->buffer16 == NULL) return;
 
 	needUpdate = 0;
 
@@ -773,12 +802,15 @@ void TFT_Driver::ST7789_UpdateDMA16bitV3(void) {
 
 void TFT_Driver::ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes)
 {
+	if (LCD == NULL || data == NULL || nbytes <= 0) return;
+
 	if (dc)
 		DATA;
 	else
 		CMD;
 
 #if defined(TFT_PLATFORM_STM32)
+	if (LCD->hspi == NULL) return;
 	__NOP();
 	__NOP();
 	__NOP();
@@ -789,6 +821,7 @@ void TFT_Driver::ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes)
 
 	HAL_SPI_Transmit(LCD->hspi, (uint8_t *)data, nbytes, 1000);
 #else
+	if (LCD->spi == NULL) return;
 	spi_write_blocking(LCD->spi, (const uint8_t*)data, nbytes);
 #endif
 }
@@ -799,11 +832,12 @@ void TFT_Driver::ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes)
 //Поддерживается на STM32 с DMA Stream (F2/F4/F7/H7).
 void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 {
-	SPI_TypeDef *spi = LCD->hspi->Instance;
-	DMA_Stream_TypeDef *dma;
+	if (LCD == NULL || LCD->hspi == NULL || LCD->hspi->Instance == NULL ||
+	    LCD->hspi->hdmatx == NULL || LCD->hspi->hdmatx->Instance == NULL ||
+	    LCD->buffer16 == NULL) return;
 
-	if (LCD->hspi->hdmatx == NULL) return; //TX DMA не привязан к SPI
-	dma = LCD->hspi->hdmatx->Instance;
+	SPI_TypeDef *spi = LCD->hspi->Instance;
+	DMA_Stream_TypeDef *dma = LCD->hspi->hdmatx->Instance;
 
 	//NDTR DMA 16-битный: кадр больше 65535 слов одним кольцом не передать
 	if ((uint32_t)LCD->TFT_WIDTH * LCD->TFT_HEIGHT > 0xFFFFu) return;
@@ -875,11 +909,11 @@ void TFT_Driver::ST7789_Update_DMA_Cicle_On(void)
 
 void TFT_Driver::ST7789_Update_DMA_Cicle_Off(void)
 {
-	SPI_TypeDef *spi = LCD->hspi->Instance;
-	DMA_Stream_TypeDef *dma;
+	if (LCD == NULL || LCD->hspi == NULL || LCD->hspi->Instance == NULL ||
+	    LCD->hspi->hdmatx == NULL || LCD->hspi->hdmatx->Instance == NULL) return;
 
-	if (LCD->hspi->hdmatx == NULL) return; //TX DMA не привязан к SPI
-	dma = LCD->hspi->hdmatx->Instance;
+	SPI_TypeDef *spi = LCD->hspi->Instance;
+	DMA_Stream_TypeDef *dma = LCD->hspi->hdmatx->Instance;
 
 	uint32_t wait_start = HAL_GetTick();
 	dma->CR &= ~DMA_SxCR_EN;            //Отключаем DMA

@@ -166,6 +166,7 @@ public:
 	void run(void) {calculate();}
 
 	void setName(const char *name) {
+		if (name == NULL) return;
 		snprintf(name_gif, sizeof(name_gif), "%s", name);
 
 		//Читаем настройки
@@ -254,10 +255,10 @@ private:
     //│ Открыть картирку по индексу 16 и 24 бит                         │ private: │
 	//└─────────────────────────────────────────────────────────────────┴──────────┤
 	void openBMPfromIndex(uint16_t i) {
-		if (tft == NULL || tft->LCD == NULL) return;
-		if (i > index_max) return;
+		if (tft == NULL || tft->LCD == NULL || tft->LCD->buffer16 == NULL || tft->LCD->Bit != 16) return;
+		if (W == 0 || H == 0 || i > index_max) return;
 
-		char current_patch[32]; //Полный путь к файлу
+		char current_patch[64]; //Полный путь к файлу
 		snprintf(current_patch, sizeof(current_patch), "/Gif/%s/res.bin", name_gif); //Собираем полный путь в файлу
 
 		int res = f_open(&SDFile, current_patch, FA_READ); //1667us -Of Gen off Fat32 2к  1360 Fat16 16к

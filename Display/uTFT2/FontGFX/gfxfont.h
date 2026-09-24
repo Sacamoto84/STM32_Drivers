@@ -52,6 +52,7 @@ public:
 
 
 	void Puts(const char *str) {
+		if (str == NULL || _tft == NULL || _tft->LCD == NULL) return;
 		while (*str) {
 			drawChar(*str);
 			str++;
@@ -60,6 +61,7 @@ public:
 	}
 
 	void Puts(int x, int y, const char *str) {
+		if (str == NULL || _tft == NULL || _tft->LCD == NULL) return;
 		_tft->uTFT.CurrentX = x;
 		_tft->uTFT.CurrentY = y;
 
@@ -71,6 +73,7 @@ public:
 	}
 
 	void Puts(int x, int y, const char *str, int limit) {
+		if (str == NULL || _tft == NULL || _tft->LCD == NULL || limit <= 0) return;
 		_tft->uTFT.CurrentX = x;
 		_tft->uTFT.CurrentY = y;
 
@@ -86,6 +89,7 @@ public:
 	}
 
 	void Puts(int x, int y, const char *str, uint16_t color) {
+		if (str == NULL || _tft == NULL || _tft->LCD == NULL) return;
 		_tft->uTFT.CurrentX = x;
 		_tft->uTFT.CurrentY = y;
 		_tft->uTFT.Color = color;
@@ -101,6 +105,7 @@ public:
 	}
 
 	void drawChar(unsigned char c, uint8_t size = 1) {
+		if (_tft == NULL || _tft->LCD == NULL) return;
 
 		if (c == '\r') return;
 		if (c == '\n') {

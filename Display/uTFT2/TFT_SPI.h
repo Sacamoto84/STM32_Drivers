@@ -44,6 +44,7 @@
 	 	void init (TFT_LCD_t * _LCD)
 	 	{
 			LCD = _LCD;
+			if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_PICO)
 			if (LCD->baudrate == 0) LCD->baudrate = 31250000;
 			spi_init(LCD->spi, LCD->baudrate);
@@ -67,6 +68,7 @@
 
 	 	//Сброс экрана
 	 	void LCD_Reset(void) {
+			if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_STM32)
 	 		HAL_GPIO_WritePin(LCD->GPIO_RESET, LCD->GPIO_Pin_RESET, GPIO_PIN_SET);
 	 		HAL_Delay(200);
@@ -85,6 +87,7 @@
 	 	}
 
 	 	void SendData(uint8_t data) {
+			if (LCD == NULL) return;
 	 		DATA;
 #if defined(TFT_PLATFORM_STM32)
 	 		HAL_SPI_Transmit(LCD->hspi, &data, 1, 1);
@@ -94,6 +97,7 @@
 	 	}
 
 	 	void SendCmd(uint8_t cmd) {
+			if (LCD == NULL) return;
 	 		CMD;
 #if defined(TFT_PLATFORM_STM32)
 	 		HAL_SPI_Transmit(LCD->hspi, &cmd, 1, 1);
@@ -105,8 +109,10 @@
 	 	// Только для порта настроенного на 16 бит
 	 	void SendCmd16(uint16_t cmd)
 	 	{
+			if (LCD == NULL) return;
 	 	    CMD;
 #if defined(TFT_PLATFORM_STM32)
+			if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
 	 	    __NOP();
 	 		LCD->hspi->Instance->DR = cmd;
 	 		uint32_t wait_start = HAL_GetTick();
@@ -118,6 +124,7 @@
 	 			if (HAL_GetTick() - wait_start > 50) break;
 	 		}
 #else
+			if (LCD->spi == NULL) return;
 			spi_write16_blocking(LCD->spi, &cmd, 1);
 #endif
 	 	}
@@ -125,8 +132,10 @@
 	 	// Только для порта настроенного на 16 бит
 	 	void SendData16(uint16_t data)
 	 	{
+			if (LCD == NULL) return;
 	 	    DATA;
 #if defined(TFT_PLATFORM_STM32)
+			if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
 	 	    __NOP();
 	 		LCD->hspi->Instance->DR = data;
 	 		uint32_t wait_start = HAL_GetTick();
@@ -138,6 +147,7 @@
 	 			if (HAL_GetTick() - wait_start > 50) break;
 	 		}
 #else
+			if (LCD->spi == NULL) return;
 			spi_write16_blocking(LCD->spi, &data, 1);
 #endif
 	 	}
@@ -146,7 +156,9 @@
 	 	// Перевод SPI на 16 бит слово
 	 	void Spi8to16(void)
 	 	{
+			if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_STM32)
+			if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
 	 		LCD->hspi->Instance->CR1 &= ~SPI_CR1_SPE; //OFF SPI
 #if defined(SPI_CR1_DFF)
 	 		LCD->hspi->Instance->CR1 |=  SPI_CR1_DFF;
@@ -156,6 +168,7 @@
 #endif
 	 		LCD->hspi->Instance->CR1 |=  SPI_CR1_SPE; //ON  SPI
 #else
+			if (LCD->spi == NULL) return;
 			spi_set_format(LCD->spi, 16, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
 #endif
 	 	}
@@ -163,7 +176,9 @@
 	 	// Перевод SPI на 8 бит слово
 	 	void Spi16to8(void)
 	 	{
+			if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_STM32)
+			if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
 	 	    LCD->hspi->Instance->CR1 &= ~SPI_CR1_SPE; //OFF SPI
 #if defined(SPI_CR1_DFF)
 	 		LCD->hspi->Instance->CR1 &= ~SPI_CR1_DFF;
@@ -173,24 +188,31 @@
 #endif
 	 		LCD->hspi->Instance->CR1 |=  SPI_CR1_SPE; //ON  SPI
 #else
+			if (LCD->spi == NULL) return;
 			spi_set_format(LCD->spi, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
 #endif
 	 	}
 	 #endif
 
 	 void LCD_Select   (void)   {
+		if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_STM32)
-	 	HAL_GPIO_WritePin(LCD->GPIO_CS, LCD->GPIO_Pin_CS, GPIO_PIN_RESET);
+	 	if (LCD->GPIO_CS != NULL)
+	 		HAL_GPIO_WritePin(LCD->GPIO_CS, LCD->GPIO_Pin_CS, GPIO_PIN_RESET);
 #else
-		gpio_put(LCD->pin_cs, 0);
+		if (LCD->pin_cs != 0xFF)
+			gpio_put(LCD->pin_cs, 0);
 #endif
 	 } //CS -> 0
 
 	 void LCD_UnSelect (void)   {
+		if (LCD == NULL) return;
 #if defined(TFT_PLATFORM_STM32)
-	 	HAL_GPIO_WritePin(LCD->GPIO_CS, LCD->GPIO_Pin_CS, GPIO_PIN_SET);
+	 	if (LCD->GPIO_CS != NULL)
+	 		HAL_GPIO_WritePin(LCD->GPIO_CS, LCD->GPIO_Pin_CS, GPIO_PIN_SET);
 #else
-		gpio_put(LCD->pin_cs, 1);
+		if (LCD->pin_cs != 0xFF)
+			gpio_put(LCD->pin_cs, 1);
 #endif
 	 } //CS -> 1
 

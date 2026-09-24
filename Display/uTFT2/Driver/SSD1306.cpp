@@ -14,6 +14,7 @@
 //#define SSD1306_WRITEDATA(data)            ssd1306_I2C_Write(SSD1306_I2C, SSD1306_I2C_ADDR, 0x40, (data))
 
 void TFT_Driver::SSD1306_WRITECOMMAND(uint8_t data) {
+	if (LCD == NULL) return;
 #ifdef TFT_USE_I2C
 #if defined(TFT_PLATFORM_STM32)
 	if (LCD->hi2c)  //I2C
@@ -39,6 +40,7 @@ void TFT_Driver::SSD1306_WRITECOMMAND(uint8_t data) {
 }
 
 void TFT_Driver::SSD1306_WRITEDATA(uint8_t data) {
+	if (LCD == NULL) return;
 #ifdef TFT_USE_I2C
 #if defined(TFT_PLATFORM_STM32)
 	if (LCD->hi2c)  //I2C
@@ -65,6 +67,7 @@ void TFT_Driver::SSD1306_WRITEDATA(uint8_t data) {
 
 //Инициализация первого экрана
 void TFT_Driver::SSD1306_Init(void) {
+	if (LCD == NULL) return;
 
 #if defined(TFT_USE_SPI)
 	//Только для SPI
@@ -135,6 +138,8 @@ void TFT_Driver::SSD1306_Init(void) {
 
 //490uS-72MHz
 void TFT_Driver::SSD1306_UpdateScreen(void) {
+	if (LCD == NULL || LCD->buffer8 == NULL) return;
+
 	//Сброс диапазона колонок (0..W-1) и страниц (0..H/8-1) перед передачей
 	SSD1306_WRITECOMMAND(0x21); //Set Column Address
 	SSD1306_WRITECOMMAND(0x00);
@@ -172,6 +177,8 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 
 #if defined(TFT_USE_SPI)
 #if defined(TFT_PLATFORM_STM32)
+	if (LCD->hspi == NULL || LCD->hspi->Instance == NULL) return;
+
     if (LCD->GPIO_CS != NULL)	
     	CS_0;
 
@@ -199,6 +206,7 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 		if (LCD->GPIO_CS != NULL)	
 			CS_1;
 #else
+		if (LCD->spi == NULL) return;
 		CS_0;
 		DATA;
 		uint32_t count = ((uint32_t)LCD->TFT_HEIGHT * LCD->TFT_WIDTH) / 8;
@@ -210,6 +218,7 @@ void TFT_Driver::SSD1306_UpdateScreen(void) {
 	}
 
 void TFT_Driver::SSD1306_Contrast(uint8_t c) {
+	if (LCD == NULL) return;
 	SSD1306_WRITECOMMAND(0x81);
 	SSD1306_WRITECOMMAND(c);
 }

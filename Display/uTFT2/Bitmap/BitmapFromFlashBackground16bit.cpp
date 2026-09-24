@@ -12,6 +12,7 @@ void BitmapFromFlashBackground16bit(TFT * tft, const Bitmap *bmp) {
 
 	const uint16_t *src16 = (bmp->steam16 != NULL) ? bmp->steam16
 			: (const uint16_t *)bmp->data;
+	if (src16 == NULL) return;
 
 	if (bmp->W == tft->LCD->TFT_WIDTH) {
 		uint32_t pixels = (uint32_t)tft->LCD->TFT_HEIGHT * tft->LCD->TFT_WIDTH;

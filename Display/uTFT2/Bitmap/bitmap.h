@@ -114,6 +114,8 @@
       uint32_t clrUsed, int32_t x0, int32_t y0,
       int trValid, uint16_t trColor, uint8_t *lineBuf, uint32_t lineBufSize)
   {
+    if (tft == NULL || tft->LCD == NULL || file == NULL || lineBuf == NULL) return 0;
+
     uint16_t pal[256];
     uint32_t palBytes = 0; //0 = не палитровый формат
     uint32_t rowBytes;     //полезные байты строки
@@ -145,6 +147,8 @@
       if (f_lseek(file, offBits + row * stride) != FR_OK) return 0;
       if (f_read(file, lineBuf, rowBytes, &rd) != FR_OK || rd != rowBytes)
         return 0; //Файл короче, чем заявляет заголовок
+
+      if (y < 0 || y >= tft->LCD->TFT_HEIGHT) continue; // строка вне экрана - пропускаем распаковку и пиксели
 
       for (uint32_t col = 0; col < width; col++) {
         uint16_t c;

@@ -168,6 +168,14 @@ public:
 				uint16_t *src = &_tft->LCD->buffer16[(row - y) * _tft->LCD->TFT_WIDTH + (x1 - x)];
 				memcpy(dst, src, row_bytes);
 			}
+		} else if (LCD->Bit == 8 && _tft->LCD->Bit == 8 && LCD->buffer8 != NULL && _tft->LCD->buffer8 != NULL) {
+			//8-битный быстрый путь: построчный memcpy
+			size_t row_bytes = (size_t)(x2 - x1);
+			for (int32_t row = y1; row < y2; row++) {
+				uint8_t *dst = &LCD->buffer8[row * LCD->TFT_WIDTH + x1];
+				uint8_t *src = &_tft->LCD->buffer8[(row - y) * _tft->LCD->TFT_WIDTH + (x1 - x)];
+				memcpy(dst, src, row_bytes);
+			}
 		} else {
 			//Обход вдоль строк (row-major) дружелюбен к кэшу и памяти
 			for (int32_t row = y1; row < y2; row++) {

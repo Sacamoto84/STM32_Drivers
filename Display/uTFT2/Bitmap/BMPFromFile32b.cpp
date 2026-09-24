@@ -10,6 +10,9 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 	//Детерминированный результат даже при ошибках
 	List_Update_Particle result = {0, 0, 0, 0, 0, 0};
 
+	if (tft == NULL || tft->LCD == NULL || Name == NULL)
+		return result;
+
 	int res;
 	uint8_t bmp_header_buffer[54]; //Буфер заголовка
 	UINT bytesread;
@@ -75,6 +78,8 @@ List_Update_Particle BMPFromFile32b(TFT * tft, int32_t x0, int32_t y0, const cha
 					if (alpha == 0) continue;
 
 					int32_t x = col + x0;
+					if (x < 0 || x >= tft->LCD->TFT_WIDTH || y < 0 || y >= tft->LCD->TFT_HEIGHT) continue;
+
 					uint8_t sR, sG, sB;
 					if (swap == 0) {
 						sR = BMP_From_File_buf[p_offset + 2];

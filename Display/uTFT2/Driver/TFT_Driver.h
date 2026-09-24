@@ -38,8 +38,8 @@ public:
 	//и выставлять в нем DMA_TX_Complete = 1 (для активного hspi),
 	//иначе функции ST7789_UpdateDMA*V2/V3 зависнут в ожидании.
 	volatile uint32_t DMA_TX_Complete;
-	uint32_t blockUpdate;
-	uint32_t needUpdate;
+	volatile uint32_t blockUpdate;
+	volatile uint32_t needUpdate;
 
 	void init(TFT_LCD_t *_LCD) {
 		LCD = _LCD;
@@ -53,6 +53,8 @@ public:
 #if defined(TFT_PLATFORM_PICO)
 		dma_channel = -1;
 #endif
+
+		if (LCD == NULL) return;
 
 		switch (LCD->LCD_Driver) {
 

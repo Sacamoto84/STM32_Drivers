@@ -72,6 +72,7 @@ const uint16_t ILI9225_regValues[] = {
 
 void TFT_Driver::ILI9225_init_table16(const uint16_t *table, int16_t size)
 {
+	  if (table == NULL || size <= 0) return;
       const uint16_t  *p = table;
 	  uint16_t  cmd;
 	  uint16_t  d;
@@ -94,6 +95,7 @@ void TFT_Driver::ILI9225_init_table16(const uint16_t *table, int16_t size)
 
 void TFT_Driver::ILI9225_init(void)
 {
+  if (LCD == NULL) return;
   //Перевод на 16 bit формат
   //LCD->hspi->Instance->CR1 |=  SPI_CR1_SPE; //Включаем SPI
 

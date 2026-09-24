@@ -7,6 +7,8 @@
 // Конвертирование строки из DOS(866) в Win1251
 static inline void ConvertStringDosTo1251 ( char *str )
 {
+	if (str == NULL) return;
+
 	static const uint8_t table[128] = {
 			0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,	// 00 - 0F
 			0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, // 10 - 1F
@@ -26,6 +28,8 @@ static inline void ConvertStringDosTo1251 ( char *str )
 // Конвертирование строки из Win1251 в DOS(866)
 static inline void ConvertString1251ToDos ( char *str )
 {
+	if (str == NULL) return;
+
 	static const uint8_t table[128] = {
 			0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, // 00 - 0F
 			0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, // 10 - 1F
@@ -47,8 +51,12 @@ static inline void ConvertString1251ToDos ( char *str )
 static uint16_t C1251toUTF8(char c);
 
 // Конвертирование строки из Win1251 в UTF8
-static inline void ConvertString1251ToUTF8 ( char *in_str, char *out_str )
+static inline void ConvertString1251ToUTF8 ( const char *in_str, char *out_str )
 {
+	if (out_str == NULL) return;
+	*out_str = '\0';
+	if (in_str == NULL) return;
+
 	uint16_t charUTF8;
     char * pUTF8 = out_str;
 
@@ -194,6 +202,10 @@ static inline int ConvertStringUTF8to1251 (const char* utf8, char* windows1251, 
 		} else if ((prefix & 0xE0) == 0xC0) {
 			if (utf8[i + 1] == '\0') break;
 			uint8_t suffix = (uint8_t)utf8[i + 1];
+			if ((suffix & 0xC0) != 0x80) {
+				windows1251[j] = '\0';
+				return 0;
+			}
 			int unicode_char = ((prefix & 0x1F) << 6) | (suffix & 0x3F);
 
 			if (unicode_char >= 0x410 && unicode_char <= 0x44F) {

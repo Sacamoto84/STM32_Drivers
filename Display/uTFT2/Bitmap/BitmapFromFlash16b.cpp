@@ -22,9 +22,10 @@ void BitmapFromFlash16b(TFT * tft, int16_t X, int16_t Y, const Bitmap *bmp) {
 	uint32_t skip_rows = (uint32_t)(y0 - Y);
 
 	//steam16 заполнен getResBitmapID; для вручную собранных Bitmap - data
-	const uint16_t *p16 = ((bmp->steam16 != NULL) ? bmp->steam16
-			: (const uint16_t *)bmp->data)
-			+ skip_rows * bmp->W + skip_cols;
+	const uint16_t *src_base = (bmp->steam16 != NULL) ? bmp->steam16 : (const uint16_t *)bmp->data;
+	if (src_base == NULL) return;
+
+	const uint16_t *p16 = src_base + skip_rows * bmp->W + skip_cols;
 
 	size_t row_bytes = (size_t)(x1 - x0) * sizeof(uint16_t);
 	for (int32_t pY = y0; pY < y1; pY++) {
