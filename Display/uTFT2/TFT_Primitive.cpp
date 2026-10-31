@@ -54,6 +54,7 @@ void TFT::LineV(int32_t X, int32_t Y1, int32_t Y2, uint16_t color) {
 	int32_t i;
 
 	if ((LCD->Bit) == 1) {
+		if (LCD->buffer8 == NULL) return;
 		if (color != 0) {
 			for (i = Y1; i <= Y2; i++)
 				LCD->buffer8[X + (i / 8) * LCD->TFT_WIDTH] |= 1 << (i % 8);
@@ -71,12 +72,14 @@ void TFT::LineV(int32_t X, int32_t Y1, int32_t Y2, uint16_t color) {
 	}
 
 	if (LCD->Bit == 16) {
+		if (LCD->buffer16 == NULL) return;
 		for (i = Y1; i <= Y2; i++)
 			LCD->buffer16[X + i * LCD->TFT_WIDTH] = color;
 		return;
 	}
 
 	if (LCD->Bit == 8) {
+		if (LCD->buffer8 == NULL) return;
 		for (i = Y1; i <= Y2; i++)
 			LCD->buffer8[X + i * LCD->TFT_WIDTH] = color;
 	}
@@ -95,6 +98,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	if (X1 > X2) return;
 
 	if ((LCD->Bit) == 1) {
+		if (LCD->buffer8 == NULL) return;
 		if (color != 0) {
 			for (i = X1; i <= X2; i++)
 				LCD->buffer8[i + (Y / 8) * LCD->TFT_WIDTH] |= 1 << (Y % 8);
@@ -106,6 +110,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	}
 
 	if ((LCD->Bit) == 16) {
+		if (LCD->buffer16 == NULL) return;
 		for (i = X1; i <= X2; i++)
 		{
 			LCD->buffer16[i + Y * LCD->TFT_WIDTH] = color;
@@ -114,6 +119,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	}
 
 	if ((LCD->Bit) == 4) {
+		if (LCD->buffer8 == NULL) return;
 		uint32_t stride = ((uint32_t)LCD->TFT_WIDTH + 1) / 2;
 		for (i = X1; i <= X2; i++)
 		{
@@ -131,6 +137,7 @@ void TFT::LineH(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	}
 
 	if ((LCD->Bit) == 8) {
+		if (LCD->buffer8 == NULL) return;
 		int YY = Y * LCD->TFT_WIDTH;
 		for (i = X1; i <= X2; i++)
 			LCD->buffer8[i + YY] = color;
@@ -144,7 +151,7 @@ void TFT::LineH16(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 	int32_t i;
 
 	//Клиппинг
-	if (LCD == NULL || Y < 0 || Y >= LCD->TFT_HEIGHT) return;
+	if (LCD == NULL || LCD->buffer16 == NULL || Y < 0 || Y >= LCD->TFT_HEIGHT) return;
 	if (X1 > X2) { int32_t t = X1; X1 = X2; X2 = t; }
 	if (X1 < 0) X1 = 0;
 	if (X2 >= LCD->TFT_WIDTH) X2 = LCD->TFT_WIDTH - 1;
@@ -158,10 +165,12 @@ void TFT::LineH16(int32_t Y, int32_t X1, int32_t X2, uint16_t color) {
 }
 
 void TFT::LineHW(int32_t x, int32_t y, int32_t w, uint16_t color) {
+	if (w <= 0) return;
 	LineH(y, x, x + w - 1, color);
 }
 
 void TFT::LineHW16(int32_t x, int32_t y, int32_t w, uint16_t color) {
+	if (w <= 0) return;
 	LineH16(y, x, x + w - 1, color);
 }
 
@@ -209,6 +218,7 @@ void TFT::RectangleFilled(int32_t x, int32_t y, uint16_t w, uint16_t h,
 	if (y2 >= LCD->TFT_HEIGHT) y2 = LCD->TFT_HEIGHT - 1;
 
 	if ((LCD->Bit) == 8) {
+		if (LCD->buffer8 == NULL) return;
 		size_t len = (size_t)(x2 - x1 + 1);
 		for (int32_t Y = y1; Y <= y2; Y++) {
 			memset(&LCD->buffer8[x1 + Y * LCD->TFT_WIDTH], (uint8_t)c, len);
@@ -252,7 +262,11 @@ void TFT::ChangeColorRectangle(int32_t x, int32_t y, uint32_t w, int32_t h,
 }
 
 void TFT::Circle(int16_t x0, int16_t y0, int16_t r, uint16_t c) {
-	if (LCD == NULL) return;
+	if (LCD == NULL || r < 0) return;
+	if (r == 0) {
+		SetPixel(x0, y0, c);
+		return;
+	}
 
 	int16_t f = 1 - r;
 	int16_t ddF_x = 1;
@@ -288,7 +302,11 @@ void TFT::Circle(int16_t x0, int16_t y0, int16_t r, uint16_t c) {
 }
 
 void TFT::CircleFilled(int16_t x0, int16_t y0, int16_t r, uint16_t c) {
-	if (LCD == NULL) return;
+	if (LCD == NULL || r < 0) return;
+	if (r == 0) {
+		SetPixel(x0, y0, c);
+		return;
+	}
 
 	int16_t f = 1 - r;
 	int16_t ddF_x = 1;

@@ -3,7 +3,8 @@
 static FontDefMicroElectronika_t Font;
 
 // Устновна фонта
-void FontMicroSetFont(FontDefMicroElectronika_t * uFont) {
+void FontMicroSetFont(const FontDefMicroElectronika_t * uFont) {
+	if (uFont == NULL) return;
 
 	Font.FontHeightEng = uFont->FontHeightEng;
 	Font.FontWidthEng = uFont->FontWidthEng;
@@ -27,8 +28,6 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 	}
 
 	int32_t i, j, index;
-	const uint8_t *peng = &Font.dataEng[0];
-	const uint8_t *prus = &Font.dataRus[0];
 	const uint8_t *p;
 	const uint8_t *offset;
 
@@ -42,12 +41,10 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 	}
 
 	if (ch < 0x80) //ENG (таблица содержит глифы 32..127)
-			{
-
+	{
 		if (Font.dataEng == NULL)
 			return;
-		p = peng;
-		p += (ch - 32) * ((Font.FontHeightEng) / 8 + 1) * Font.FontWidthEng
+		p = Font.dataEng + (ch - 32) * (((uint32_t)Font.FontHeightEng) / 8 + 1) * Font.FontWidthEng
 				+ (ch - 32);
 		offset = p;
 		p++;
@@ -58,8 +55,7 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 	{
 		if (Font.dataRus == NULL)
 			return;
-		p = prus;
-		p += (ch - 0xC0) * ((Font.FontHeightRus) / 8 + 1) * Font.FontWidthRus
+		p = Font.dataRus + (ch - 0xC0) * (((uint32_t)Font.FontHeightRus) / 8 + 1) * Font.FontWidthRus
 				+ (ch - 0xC0);
 		offset = p;
 		p++;
@@ -71,6 +67,8 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 		tft->uTFT.CurrentX += 1 + dx;
 		return;
 	}
+
+	if (Height <= 0 || maxWidth == 0) return;
 
 	//Защита от битых данных: ширина глифа не больше заявленной ширины шрифта
 	if (*offset > maxWidth) {
@@ -100,6 +98,7 @@ void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx, uint8_t transparrent) {
 }
 
 void FontMicroPuts(TFT * tft, const char *str, uint8_t dx, uint8_t transparrent) {
+	if (tft == NULL || str == NULL) return;
 	while (*str) {
 		FontMicroPutc(tft, *str, dx, transparrent);
 		str++;
@@ -107,15 +106,14 @@ void FontMicroPuts(TFT * tft, const char *str, uint8_t dx, uint8_t transparrent)
 }
 
 //Определение длинны строки в пикселях по типу текущего шрифта
-uint16_t FontMicroFindLenStr(const char *str, FontDefMicroElectronika_t * uFont, uint8_t dx)
+uint16_t FontMicroFindLenStr(const char *str, const FontDefMicroElectronika_t * uFont, uint8_t dx)
 {
-	const uint8_t *p;
+	if (str == NULL || uFont == NULL || uFont->dataEng == NULL)
+		return 0;
 
+	const uint8_t *p;
 	uint16_t lenSum = 0;
 	uint32_t lengs = strlen(str); //Количество символов (без обрезки на 255)
-
-	if (uFont->dataEng == NULL)
-		return 0;
 
 	//Перебираем каждый символ
 	for (uint32_t i = 0; i < lengs; i++) {

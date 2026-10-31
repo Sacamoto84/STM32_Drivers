@@ -29,13 +29,16 @@ public:
     void setHW(uint16_t _H, uint16_t _W ) { H = _H; W =_W; }
     void setH (uint16_t _H)               { H = _H;        }
 	void setW (uint16_t _W )              { W =_W;         }
-	void setXY(uint16_t X, uint16_t Y )   { x = X; y = Y;  }
-	void setX (uint16_t X)                { x = X;         }
-	void setY (uint16_t Y)                { if (tft && tft->LCD) y = constrain(Y, 0, tft->LCD->TFT_HEIGHT - 1); else y = Y; }
-	List_Update_Particle info(void)       { List_Update_Particle U;  U.H = H; U.W = W; U.x0 = x; U.y0 = y; U.x1 = x + W - 1; U.y1 = y + H - 1; return U; }
+	void setXY(uint16_t X, uint16_t Y )   { setX(X); setY(Y);  }
+	void setX (uint16_t X)                { if (tft && tft->LCD) x = (tft->LCD->TFT_WIDTH > 0) ? constrain(X, (uint16_t)0, (uint16_t)(tft->LCD->TFT_WIDTH - 1)) : X; else x = X; }
+	void setY (uint16_t Y)                { if (tft && tft->LCD) y = (tft->LCD->TFT_HEIGHT > 0) ? constrain(Y, (uint16_t)0, (uint16_t)(tft->LCD->TFT_HEIGHT - 1)) : Y; else y = Y; }
+	List_Update_Particle info(void)       { List_Update_Particle U;  U.H = H; U.W = W; U.x0 = x; U.y0 = y; U.x1 = (W > 0) ? (x + W - 1) : x; U.y1 = (H > 0) ? (y + H - 1) : y; return U; }
     void setEaseP(Ease e)                 { easeP = e; } //Выбор типа движения в анимации
     void setEaseN(Ease e)                 { easeN = e; } //Выбор типа движения в анимации
     void setColor(uint16_t c)             { color = c; } //Цвет закраски
+    void setDurationP(float ms)           { if (ms > 0.0F) animation_max_time_P = ms; }
+    void setDurationN(float ms)           { if (ms > 0.0F) animation_max_time_N = ms; }
+    void setDuration(float ms)            { setDurationP(ms); setDurationN(ms); }
 
     uint8_t needUpdate(void)              {
     	if (_needUpdate)
@@ -50,12 +53,13 @@ public:
        if (tft == NULL || tft->LCD == NULL) return;
 
        float temp;
-
-       float elapsedTimeRate; //Состояние онимации от 0.0 до 1.0
+       float elapsedTimeRate; //Состояние анимации от 0.0 до 1.0
+       float max_time_P = (animation_max_time_P > 0.0F) ? animation_max_time_P : 1.0F;
+       float max_time_N = (animation_max_time_N > 0.0F) ? animation_max_time_N : 1.0F;
 
     	if (P)
     	{
-    	  temp = (float)( (float)( TFT_GET_TICK() - animation_start_time_P ) / animation_max_time_P ); //Получаем время 0..1 анимации
+    	  temp = (float)( (float)( TFT_GET_TICK() - animation_start_time_P ) / max_time_P ); //Получаем время 0..1 анимации
     	  if (temp >= 1.0F) {P = 0; temp = 1.0F; } //Анимацию больше не использовать
     	  Gloabal_percent = temp;
 
@@ -83,7 +87,7 @@ public:
 
     	if (N)
     	{
-    	  temp = (1.0F - Gloabal_percent) + (float)( (float)( TFT_GET_TICK() - animation_start_time_N ) / animation_max_time_N ); //Получаем время 0..1 анимации
+    	  temp = (1.0F - Gloabal_percent) + (float)( (float)( TFT_GET_TICK() - animation_start_time_N ) / max_time_N ); //Получаем время 0..1 анимации
 
     	  if (temp >= 1.0F) {N = 0; temp = 1.0F; } //Анимацию больше не использовать
     	  temp = constrain(temp, 0.0F, 1.0F);

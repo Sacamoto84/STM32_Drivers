@@ -171,9 +171,6 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 
 	LCD_CS_0;
 
-	int i;
-	int ii;
-
     int fullscreen = 0;
     if ((x0 == 0) && (y0 == 0) && (x1 == LCD->TFT_WIDTH - 1) && (y1==LCD->TFT_HEIGHT - 1)) fullscreen = 1;
 
@@ -219,6 +216,8 @@ void TFT_Driver::ST7789_Update(int x0, int y0, int x1, int y1) {
 cleanup_pico:
 	while (spi_get_hw(LCD->spi)->sr & SPI_SSPSR_BSY_BITS);
 #else
+	int i;
+	int ii;
 	if (LCD->Bit == 4) {
 		if (LCD->buffer8 == NULL) goto cleanup_stm32;
 		//Отправляем только пиксели заданного окна.

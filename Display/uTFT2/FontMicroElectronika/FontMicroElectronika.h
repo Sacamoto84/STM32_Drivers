@@ -31,15 +31,15 @@ typedef struct {
 #include "TFT.h"
 
 // Устновка фонта
-extern void FontMicroSetFont(FontDefMicroElectronika_t *uFont);
+extern void FontMicroSetFont(const FontDefMicroElectronika_t *uFont);
 // Вывод символа
 extern void FontMicroPutc(TFT * tft, uint8_t ch, uint8_t dx = 1, uint8_t transparrent = 0);
 extern void FontMicroPuts(TFT * tft, const char *str, uint8_t dx = 1, uint8_t transparrent = 0);
 //Определение длины строки в пикселях по типу текущего шрифта
-uint16_t FontMicroFindLenStr(const char *str, FontDefMicroElectronika_t *uFont, uint8_t dx = 1);
+uint16_t FontMicroFindLenStr(const char *str, const FontDefMicroElectronika_t *uFont, uint8_t dx = 1);
 #else
-extern void FontMicroSetFont(FontDefMicroElectronika_t *uFont);
-uint16_t FontMicroFindLenStr(const char *str, FontDefMicroElectronika_t *uFont, uint8_t dx);
+extern void FontMicroSetFont(const FontDefMicroElectronika_t *uFont);
+uint16_t FontMicroFindLenStr(const char *str, const FontDefMicroElectronika_t *uFont, uint8_t dx);
 #endif
 
 #ifdef __cplusplus

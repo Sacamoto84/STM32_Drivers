@@ -38,7 +38,9 @@ extern FontDef_t Font_16x26;
   * @param  NoBack true если не нужен задний фон за символом, по умолчанию 0
   * @retval ch status
   */
-static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t NoBack ) {
+static inline char FontClassicPutc(TFT * tft, char ch, const FontDef_t* Font, uint8_t NoBack = 0) {
+	if (tft == NULL || tft->LCD == NULL || Font == NULL || Font->data == NULL) return 0;
+
 	uint32_t i, b, j;
 
 	if (ch == '\r') return ch;
@@ -51,7 +53,7 @@ static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t 
 	//Символы до пробела не входят в таблицу данных шрифта (индекс < 0),
 	//127 (DEL) - тоже: в таблице 95 глифов (32..126), иначе чтение за границей
 	if ((uint8_t)ch < 32 || (uint8_t)ch > 126) {
-		tft->uTFT.CurrentX += Font->FontWidth - 1;
+		tft->uTFT.CurrentX += (Font->FontWidth > 0) ? (Font->FontWidth - 1) : 0;
 		return ch;
 	}
 
@@ -75,7 +77,7 @@ static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t 
 	}
 
 	/* Increase pointer */
-	tft->uTFT.CurrentX += Font->FontWidth-1;
+	tft->uTFT.CurrentX += (Font->FontWidth > 0) ? (Font->FontWidth - 1) : 0;
 
 	/* Return character written */
 	return ch;
@@ -89,7 +91,8 @@ static inline char FontClassicPutc(TFT * tft, char ch, FontDef_t* Font, uint8_t 
   * @param  NoBack 1 если не нужен задний фон, 0 - выводить цвет фона
   * @retval 0 при успешном выводе всей строки или первый не выведенный символ
   */
-static inline char FontClassicPuts(TFT * tft, const char* str, FontDef_t* Font, uint8_t NoBack) {
+static inline char FontClassicPuts(TFT * tft, const char* str, const FontDef_t* Font, uint8_t NoBack = 0) {
+	if (tft == NULL || str == NULL || Font == NULL) return 0;
 	while (*str) {
 		if (FontClassicPutc(tft, *str, Font, NoBack) != *str) {
 			return *str;
@@ -101,7 +104,8 @@ static inline char FontClassicPuts(TFT * tft, const char* str, FontDef_t* Font, 
 }
 
 // Длина строки
-static inline const char* FontClassicGetStringSize(const char* str, FONTS_SIZE_t* SizeStruct, FontDef_t* Font) {
+static inline const char* FontClassicGetStringSize(const char* str, FONTS_SIZE_t* SizeStruct, const FontDef_t* Font) {
+	if (str == NULL || SizeStruct == NULL || Font == NULL) return NULL;
 	/* Fill settings */
 	SizeStruct->Height = Font->FontHeight;
 	SizeStruct->Length = Font->FontWidth * strlen(str);

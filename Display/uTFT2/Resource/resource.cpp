@@ -11,6 +11,12 @@ void setResStartAdress(uint32_t i) {
     return;
   }
   uint32_t *p = (uint32_t *)i;
+  // Защита от неинициализированной/стертой flash (0xFFFFFFFF)
+  if (*p > 65535) {
+    resurce_start_adress = 0;
+    resurce_count = 0;
+    return;
+  }
   resurce_start_adress = i;
   resurce_count = *p;               //Получить количество записей
 }
@@ -22,9 +28,10 @@ uint8_t * getResAdressFontID(uint32_t id) {
 
 	uint32_t * offset;
 	offset = (uint32_t *)(resurce_start_adress + 4 + (16*id) + 12);
+	if (*offset == 0) return NULL; //Пустая или поврежденная запись
 	uint8_t * adress;
 	adress = (uint8_t *)(resurce_start_adress + *offset);
-	    return adress;
+	return adress;
 }
 
 //Получить дескриптор картинки из ресурсов 16 и 32 бит
@@ -33,13 +40,15 @@ Bitmap getResBitmapID(uint32_t id) {
     if (resurce_start_adress == 0) return bmp;
     if (id >= resurce_count) return bmp; //Выход за границы таблицы ресурсов
 
+    uint32_t * offset;
+    offset = (uint32_t *)(resurce_start_adress + 4 + (16*id) + 12);
+    if (*offset == 0) return bmp; //Пустая или поврежденная запись
+
     uint32_t *p;
     p = (uint32_t *)(resurce_start_adress + 4 + (16*id));
     bmp.W = (uint16_t)*p++;
     bmp.H = (uint16_t)*p++;
     bmp.bit =*p++;
-    uint32_t * offset;
-    offset = (uint32_t *)(resurce_start_adress + 4 + (16*id) + 12);
     bmp.data = (uint32_t *)(resurce_start_adress + *offset);
     //Рендеры (Alpha, Background16bit, Transparent) читают steam16/steam32 -
     //заполняем их тем же адресом данных (раньше оставались NULL)

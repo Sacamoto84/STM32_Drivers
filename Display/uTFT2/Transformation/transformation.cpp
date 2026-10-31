@@ -134,6 +134,7 @@ void transformation::scroll(int16_t dx, int16_t dy)
 	    // Now move the pixels in RAM
 	    if (tft->LCD->Bit == 16)
 	    {
+	      if (tft->LCD->buffer16 == NULL) return;
 	      while (h--)
 	      { // move pixel lines (to, from, byte count)
 	        memmove( (&tft->LCD->buffer16[0] + typ) ,  (&tft->LCD->buffer16[0] + fyp), w<<1);
@@ -143,6 +144,7 @@ void transformation::scroll(int16_t dx, int16_t dy)
 	    }
 	    else if (tft->LCD->Bit == 8)
 	    {
+	      if (tft->LCD->buffer8 == NULL) return;
 	      //8 бит: 1 байт на пиксель - строки можно двигать memmove
 	      while (h--)
 	      {

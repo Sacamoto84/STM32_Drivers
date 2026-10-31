@@ -12,22 +12,22 @@
 extern FIL SDFile;
 
 uint32_t (*videoCallBackFunc)(uint32_t);          //Некая функция, используется для остановки видео по событию во время проигрования
-uint32_t video_stop;                              //Для user как некая временная переменная (прекратить повторный запуск)
+volatile uint32_t video_stop;                     //Для user как некая временная переменная (прекратить повторный запуск)
 
 //Video только для экранов с 16-битным фреймбуфером, размер кадра = TFT_WIDTH * TFT_HEIGHT * 2
 void video_load(TFT * tft, uint8_t delay)
 {
 	if (tft == NULL || tft->LCD == NULL) return;
-    uint32_t index;
 	uint32_t fsize = f_size(&SDFile);
 	//Размер кадра в байтах - из параметров экрана (без хардкода 115200)
 	uint32_t frame_size = (uint32_t)tft->LCD->TFT_WIDTH * (uint32_t)tft->LCD->TFT_HEIGHT * 2;
-	UINT bytesread;
-	uint32_t start_time = HAL_GetTick();    //Запоминаем время начала кадра
-	int32_t delta;                          //Время которое нужно подождать до delay
-	video_stop = 0;                         //Сброс временной переменной
+	if (frame_size == 0 || tft->LCD->Bit != 16 || tft->LCD->buffer16 == NULL || fsize < frame_size) return;
 
-	if (frame_size == 0 || tft->LCD->Bit != 16 || tft->LCD->buffer16 == NULL) return;
+	uint32_t index;
+	UINT bytesread;
+	uint32_t start_time = TFT_VIDEO_GET_TICK(); //Запоминаем время начала кадра
+	int32_t delta;                              //Время которое нужно подождать до delay
+	video_stop = 0;                             //Сброс временной переменной
 
 #if defined(TFT_DRIVER_ST7789)
 	tft->driver.ST7789_Update_DMA_Cicle_On();    //Запуск кольцевого буфера
@@ -37,9 +37,15 @@ void video_load(TFT * tft, uint8_t delay)
 	//─ Цикл ────────────────────────────────────────────────────────────────────┐
 	for(index = 0; index + frame_size <= fsize; index += frame_size){         //│
 	                                                                       //│
+		if (video_stop) break;                                                 //│
 		//─ Читаем полный кадр ─                                               //│
 		f_read (&SDFile, (uint8_t*)(tft->LCD->buffer16), frame_size, &bytesread);  //│
 		if (bytesread != frame_size) break; //Обрыв файла                     //│
+		                                                                       //│
+#if !defined(TFT_DRIVER_ST7789)
+		//Для драйверов без кольцевого DMA (SSD1306, ILI9225 или ST7789 на Pico)
+		tft->driver.Update();                                                  //│
+#endif
 		                                                                       //│
 		//─ Проверка на выход из цикла ─────────────────────────────────────────┐│
 		if (videoCallBackFunc) {                                              //││
@@ -49,11 +55,17 @@ void video_load(TFT * tft, uint8_t delay)
 		//──────────────────────────────────────────────────────────────────────┘│
 		                                                                       //│
 		//─ Задержка кадра ─────────────────────────────────────────────────────┐│
-		delta =  (int32_t)delay - (int32_t)(HAL_GetTick() - start_time) - 1;   //Время до времени кадра ││
+		delta =  (int32_t)delay - (int32_t)(TFT_VIDEO_GET_TICK() - start_time) - 1; //Время до времени кадра ││
 		                                                                      //││
 		if ((delay) && (delta > 0)){                                          //││
-			  uint32_t tickstart = HAL_GetTick();                             //││
-			  while((HAL_GetTick() - tickstart) < (uint32_t)delta){           //││
+			  uint32_t tickstart = TFT_VIDEO_GET_TICK();                      //││
+			  while((TFT_VIDEO_GET_TICK() - tickstart) < (uint32_t)delta){    //││
+				if (video_stop) {                                             //││
+#if defined(TFT_DRIVER_ST7789)
+					tft->driver.ST7789_Update_DMA_Cicle_Off();                //││
+#endif
+					return;                                                   //││
+				}                                                             //││
 				if (videoCallBackFunc){                                       //││
 				    uint32_t (*fcnPtr)(uint32_t) = videoCallBackFunc;         //││
 					if(fcnPtr(0)){                                            //││
@@ -65,7 +77,7 @@ void video_load(TFT * tft, uint8_t delay)
 				}                                                             //││
 			  }                                                               //││
 		}                                                                     //││
-		start_time = HAL_GetTick();                                           //││
+		start_time = TFT_VIDEO_GET_TICK();                                    //││
 		//──────────────────────────────────────────────────────────────────────┘│
 	}                                                                          //│
 	//───────────────────────────────────────────────────────────────────────────┘
@@ -76,7 +88,7 @@ void video_load(TFT * tft, uint8_t delay)
 
 void video_play(TFT * tft, const char * Name, uint8_t delay){
 	if (tft == NULL || tft->LCD == NULL || Name == NULL) return;
-	char str[32];
+	char str[128];
 	snprintf(str, sizeof(str), "%s", Name);
 	ConvertStringDosTo1251 ( str );
 	//Каждый кириллический символ разворачивается в 2 байта UTF-8
