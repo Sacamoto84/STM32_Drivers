@@ -6,7 +6,7 @@ extern HiSpeedDWT TimerT5;
 
 #include "timber.h"
 
-uint32_t OUTPUT[OUTPUTSAMPLES] RAM_16;
+uint16_t OUTPUT[OUTPUTSAMPLES] RAM_16;
 
 FIL SDFile1 CCMRAM;
 
@@ -81,20 +81,13 @@ void GENERATOR::Create_FM_Modulation(_structure_ch *_CH) {
 		timber.print(">Open OK %s\n", str);
 		UINT testByte;
 
-		if (_CH->CH == 0)
-		  f_read(&SDFile, &cacheFM1, 2048, &testByte);
-		else
-		  f_read(&SDFile, &cacheFM2, 2048, &testByte);
+		f_read(&SDFile, &cacheFM, 2048, &testByte);
 
 		f_close(&SDFile);
 	} else
         timber.print(">Open Error %s\n", str);
 	///////////////////
-	uint16_t *p;
-	if (_CH->CH == 0)
-	  p = (uint16_t*)&cacheFM1[0];
-	else
-	  p = (uint16_t*)&cacheFM2[0];
+	uint16_t *p = (uint16_t*)&cacheFM[0];
 
 	float buffer[FM_MODSAMPLES];
 
@@ -143,12 +136,7 @@ void GENERATOR::Refresh_FM_Modulation(_structure_ch *_CH) {
 
 	uint16_t i;
 
-	uint16_t *p;
-	if (_CH->CH == 0)
-	  p = (uint16_t*)&cacheFM1[0];
-
-	else
-	  p = (uint16_t*)&cacheFM2[0];
+	uint16_t *p = (uint16_t*)&cacheFM[0];
 
 	float buffer[FM_MODSAMPLES];
 
@@ -186,20 +174,15 @@ void GENERATOR::Refresh_FM_Modulation(_structure_ch *_CH) {
 
 void GENERATOR::Init(void) {
 
-	//CH1.CH = 0;
-	//CH2.CH = 1;
 
-	//Читаем настройки из файла save.ini и заполняем структуру CH1 и CH2
+	//Читаем настройки из файла save.ini и заполняем структуру CH1
 	//read_save_ini_to_structure_ch();
 
 	//Create_Carrier(&CH1);
-	//Create_Carrier(&CH2);
 
 	//Create_AM_Modulation(&CH1);
-	//Create_AM_Modulation(&CH2);
 
 	//Create_FM_Modulation(&CH1);
-	//Create_FM_Modulation(&CH2);
 
 
 
@@ -209,14 +192,14 @@ void GENERATOR::Init(void) {
 	/**************************
 	 *  DMA DAC
 	 **************************/
-	DAC1->CR |= DAC_CR_DMAEN1 | DAC_CR_EN1 | DAC_CR_DMAEN2 | DAC_CR_EN2;
-	//HAL_DMA_Start_IT(&hdma_dac1, 0x2001C000, 0x40007420, 4096);
+	DAC1->CR |= DAC_CR_DMAEN1 | DAC_CR_EN1;
 
+	//Размер передачи 16 бит задан в MX_DAC_Init (hdma_dac1)
 	DMA1_Stream5->CR &= ~DMA_SxCR_EN; //Выключаем DMA
 	DMA1_Stream5->NDTR = OUTPUTSAMPLES / 2;
-	DMA1_Stream5->PAR = 0x40007420; //DAC 12R
-	DMA1_Stream5->M0AR = (uint32_t) &OUTPUT; //(int)pOUTPUT;
-	DMA1_Stream5->M1AR = (uint32_t) &OUTPUT + OUTPUTSAMPLES * 2; //(int)pOUTPUT;
+	DMA1_Stream5->PAR = (uint32_t) &DAC1->DHR12R1; //DAC канал 1, 12 бит
+	DMA1_Stream5->M0AR = (uint32_t) &OUTPUT[0];
+	DMA1_Stream5->M1AR = (uint32_t) &OUTPUT[OUTPUTSAMPLES / 2];
 	//DMA1_Stream5->CR |=  DMA_SxCR_CIRC;// | DMA_SxCR_HTIE;
 	////DMA1_Stream5->CR &= ~DMA_SxCR_TCIE;
 	DMA1_Stream5->CR |= DMA_SxCR_TCIE | DMA_SxCR_CIRC | DMA_SxCR_DBM;// DMA_SxCR_HTIE; //Прерывание | Циклический режим | //Двойной буффер
@@ -225,70 +208,175 @@ void GENERATOR::Init(void) {
 	HAL_TIM_Base_Start(&htim6);  //Запуск таймера6 для DAC
 }
 
+//Секция ФНЧ, прямая форма I: в float32 меньше шумит при низком срезе, чем транспонированная II
+static inline float biquad(const _biquad &c, float *s, float x) {
+	const float y = c.b0 * (x + 2.0F * s[0] + s[1]) - c.a1 * s[2] - c.a2 * s[3];
+	s[1] = s[0];
+	s[0] = x;
+	s[3] = s[2];
+	s[2] = y;
+	return y;
+}
+
 void GENERATOR::syg_update(int Buffer_Current) {
-	volatile static uint16_t O1;
-	volatile static uint16_t O2;
+	uint16_t *out = &OUTPUT[Buffer_Current ? OUTPUTSAMPLES / 2 : 0];
+	uint16_t *const out_end = out + OUTPUTSAMPLES / 2;
 
-	volatile static uint32_t i;
-	volatile static uint32_t i_max;
-
-	if (Buffer_Current) {
-		i = OUTPUTSAMPLES / 2;
-		i_max = OUTPUTSAMPLES;
-	} else {
-		i = 0;
-		i_max = OUTPUTSAMPLES / 2;
+	if (!CH1.CH_EN) {
+		memset(filter_state, 0, sizeof(filter_state));
+		while (out < out_end)
+			*out++ = 2048;
+		return;
 	}
 
 	CH1.rC = convertHzToR(CH1.Carrier_fr);
-	CH2.rC = convertHzToR(CH2.Carrier_fr);
 	CH1.rAM = convertHzToR(CH1.AM_fr);
-	CH2.rAM = convertHzToR(CH2.AM_fr);
 	CH1.rFM = convertHzToR(CH1.FM_mod_fr);
-	CH2.rFM = convertHzToR(CH2.FM_mod_fr);
 
 	CH1.Volume = 0.65F;
-	CH2.Volume = 0.65F;
 
-	for (i; i < i_max; i++) {
-		if  (CH1.CH_EN)
-		{
-		if (CH1.FM_EN) {
-			CH1.phase_accumulator_fm = CH1.phase_accumulator_fm + CH1.rFM;
-			CH1.phase_accumulator_carrier =	CH1.phase_accumulator_carrier + (uint32_t) ((CH1.buffer_fm[CH1.phase_accumulator_fm	>> 23]) * 16384.0F / 3.798F * 2.0F);
-		} else
-			CH1.phase_accumulator_carrier += CH1.rC;
+	//Состояние на время куска держим в локальных: поля CH1 в packed структуре
+	const uint32_t rC = CH1.rC;
+	const uint32_t rAM = CH1.rAM;
+	const uint32_t rFM = CH1.rFM;
+	const float volume = CH1.Volume;
+	const float fm_to_r = convertHzToR(1.0F);
+	const bool am_en = CH1.AM_EN;
+	const bool fm_en = CH1.FM_EN;
 
-		if (CH1.AM_EN) {
-			CH1.phase_accumulator_mod = CH1.phase_accumulator_mod + CH1.rAM;
-			O1 = 2048 + CH1.Volume * (CH1.buffer_carrier[CH1.phase_accumulator_carrier >> 22] - 2048.F)	* (CH1.buffer_am[CH1.phase_accumulator_mod >> 22]/ 4095.0F);
+	uint32_t phase_carrier = CH1.phase_accumulator_carrier;
+	uint32_t phase_am = CH1.phase_accumulator_mod;
+	uint32_t phase_fm = CH1.phase_accumulator_fm;
+
+	const _filter_coef coef = filter_coef[filter_active];
+	float state[FILTER_SECTIONS][4];
+	memcpy(state, filter_state, sizeof(state));
+
+	//Отключенные секции начинают с нуля, когда их включат снова
+	for (uint32_t n = coef.sections; n < FILTER_SECTIONS; n++)
+		memset(state[n], 0, sizeof(state[n]));
+
+	while (out < out_end) {
+		if (fm_en) {
+			phase_fm += rFM;
+			phase_carrier += (uint32_t) (CH1.buffer_fm[phase_fm >> 23] * fm_to_r);
 		} else
-			O1 = 2048 + CH1.Volume * (CH1.buffer_carrier[CH1.phase_accumulator_carrier>> 22] - 2048.0F);
+			phase_carrier += rC;
+
+		float sample = volume * (CH1.buffer_carrier[phase_carrier >> 22] - 2048.0F);
+
+		if (am_en) {
+			phase_am += rAM;
+			sample *= CH1.buffer_am[phase_am >> 22] * (1.0F / 4095.0F);
 		}
-		else
-			O1 = 2048;
 
-		if  (CH2.CH_EN)
-		{
-		if (CH2.FM_EN) {
-			CH2.phase_accumulator_fm = CH2.phase_accumulator_fm + CH2.rFM;
-			CH2.phase_accumulator_carrier =	CH2.phase_accumulator_carrier + (uint32_t) ((CH2.buffer_fm[CH2.phase_accumulator_fm	>> 23]) * 16384.0F / 3.798F * 2.0F);
-		} else
-			CH2.phase_accumulator_carrier += CH2.rC;
-
-		if (CH2.AM_EN) {
-			CH2.phase_accumulator_mod = CH2.phase_accumulator_mod + CH2.rAM;
-			O2 = 2048 + CH2.Volume * (CH2.buffer_carrier[CH2.phase_accumulator_carrier >> 22] - 2048.F)	* (CH2.buffer_am[CH2.phase_accumulator_mod >> 22]/ 4095.0F);
-		} else
-			O2 = 2048 + CH2.Volume * (CH2.buffer_carrier[CH2.phase_accumulator_carrier>> 22] - 2048.0F);
+		if (coef.sections > 0) {
+			sample = biquad(coef.s[0], state[0], sample);
+			if (coef.sections > 1)
+				sample = biquad(coef.s[1], state[1], sample);
 		}
-		else
-			O2 = 2048;
 
-		OUTPUT[i] = (O2 << 16) | O1;
-
+		*out++ = (uint16_t) __USAT((int32_t) (2048.0F + sample), 12); //Фильтр может дать выброс
 	}
 
+	CH1.phase_accumulator_carrier = phase_carrier;
+	CH1.phase_accumulator_mod = phase_am;
+	CH1.phase_accumulator_fm = phase_fm;
+	memcpy(filter_state, state, sizeof(state));
+}
+
+//tan цепной дробью на FPU, без libm. Ошибка < 1e-6 при x <= 1 рад (частота среза * 1.6 при 100 кГц)
+static float tan_small(float x) {
+	const float x2 = x * x;
+	float t = 7.0F - x2 / 9.0F;
+	t = 5.0F - x2 / t;
+	t = 3.0F - x2 / t;
+	t = 1.0F - x2 / t;
+	return x / t;
+}
+
+void GENERATOR::Filter_Apply(void) {
+	//Q и множитель частоты секции, чтобы срез всего фильтра был по -3 dB
+	static const struct { float q, m; } proto[2][2][FILTER_SECTIONS] = {
+		{ { { 0.70711F, 1.0F },     { 0.0F, 0.0F } },         //Butterworth 2
+		  { { 0.54120F, 1.0F },     { 1.30656F, 1.0F } } },   //Butterworth 4
+		{ { { 0.57735F, 1.27202F }, { 0.0F, 0.0F } },         //Bessel 2
+		  { { 0.52193F, 1.41930F }, { 0.80554F, 1.59102F } } }, //Bessel 4
+	};
+
+	const uint8_t next = filter_active ^ 1;
+	_filter_coef &c = filter_coef[next];
+	const int order_index = (filter_cfg.Order == 2) ? 0 : 1;
+
+	c.sections = filter_cfg.EN ? order_index + 1 : 0;
+
+	for (int n = 0; n <= order_index; n++) {
+		const float q = proto[filter_cfg.Type][order_index][n].q;
+		const float m = proto[filter_cfg.Type][order_index][n].m;
+		const float k = tan_small(3.14159265F * filter_cfg.Fr * m / SAMPLE_RATE_HZ);
+		const float d = 1.0F + k / q + k * k;
+
+		c.s[n].a1 = 2.0F * (k * k - 1.0F) / d;
+		c.s[n].a2 = (1.0F - k / q + k * k) / d;
+		c.s[n].b0 = (1.0F + c.s[n].a1 + c.s[n].a2) / 4.0F; //Из округленных a1 a2: усиление на DC ровно 1
+	}
+
+	filter_active = next;
+}
+
+void GENERATOR::Filter_Load(void) {
+	filter_cfg.EN = 0;
+	filter_cfg.Type = FILTER_BESSEL; //Без выбросов на прямоугольнике
+	filter_cfg.Order = 4;
+	filter_cfg.Fr = 20000;
+
+	memset(filter_coef, 0, sizeof(filter_coef));
+	memset(filter_state, 0, sizeof(filter_state));
+	filter_active = 0;
+
+	if (f_open(&SDFile, "/Config/filter.ini", FA_OPEN_EXISTING | FA_READ) == FR_OK) {
+		char line[24];
+		while (f_gets(line, sizeof(line), &SDFile)) {
+			if (strncmp(line, "EN=", 3) == 0)
+				filter_cfg.EN = atoi(&line[3]) != 0;
+			else if (strncmp(line, "TYPE=", 5) == 0)
+				filter_cfg.Type = (strncmp(&line[5], "BUTTER", 6) == 0) ? FILTER_BUTTERWORTH : FILTER_BESSEL;
+			else if (strncmp(line, "ORDER=", 6) == 0)
+				filter_cfg.Order = (atoi(&line[6]) == 2) ? 2 : 4;
+			else if (strncmp(line, "FR=", 3) == 0) {
+				const int fr = atoi(&line[3]);
+				filter_cfg.Fr = (fr < FILTER_FR_MIN) ? FILTER_FR_MIN : (fr > FILTER_FR_MAX) ? FILTER_FR_MAX : fr;
+			}
+		}
+		f_close(&SDFile);
+	}
+
+	Filter_Apply();
+}
+
+bool GENERATOR::Filter_Save(void) {
+	char str[64];
+	const int len = snprintf(str, sizeof(str), "EN=%d\r\nTYPE=%s\r\nORDER=%d\r\nFR=%lu\r\n",
+			filter_cfg.EN, (filter_cfg.Type == FILTER_BUTTERWORTH) ? "BUTTER" : "BESSEL",
+			filter_cfg.Order, filter_cfg.Fr);
+
+	pause(); //Как в MSD: без прерываний DMA на время записи на SD
+
+	f_mkdir("/Config"); //Если уже есть, вернет FR_EXIST
+
+	bool ok = false;
+	if (f_open(&SDFile, "/Config/filter.ini", FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
+		UINT written;
+		ok = (f_write(&SDFile, str, len, &written) == FR_OK) && (written == (UINT) len);
+		ok = (f_close(&SDFile) == FR_OK) && ok;
+	}
+
+	start();
+
+	if (!ok)
+		timber.print(">Filter save error\n");
+
+	return ok;
 }
 
 void GENERATOR::read_save_ini_to_structure_ch(void)
@@ -358,52 +446,6 @@ void GENERATOR::read_save_ini_to_structure_ch(void)
         timber.print("%sCH1.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
     else {  timber.print("%sError [CH1] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
-////////////////
-    timber.print("%s-----------------------------'\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN);
-
-    if (ini.getValue("CH2", "CR En", buffer, bufferLen, CH2.CH_EN))
-    	 timber.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'CR En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "CR Fr", buffer, bufferLen, CH2.Carrier_fr))
-    	 timber.print("%sCH2.CR Fr   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'CR Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "CR Mod", buffer, bufferLen, &CH2.Carrier_mod[0], 20))
-    	 timber.print("%sCH2.CR Mod  =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'CR Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "AM En", buffer, bufferLen, CH2.AM_EN))
-    	 timber.print("%sCH2.CR EN   =  %s \r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'AM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "AM Fr", buffer, bufferLen, CH2.AM_fr))
-    	 timber.print("%sCH2.AM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'AM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "AM Mod", buffer, bufferLen, &CH2.AM_mod[0],20))
-    	 timber.print("%sCH2.AM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else { timber.print("%sError [CH2] key 'AM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "FM En", buffer, bufferLen, CH2.FM_EN))
-    	 timber.print("%sCH2.FM En   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'FM En'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "FM Base", buffer, bufferLen, CH2.FM_Base))
-    	 timber.print("%sCH2.FM Base =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'FM Base'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "FM Div", buffer, bufferLen, CH2.FM_Dev))
-    	 timber.print("%sCH2.FM Div  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'FM Div'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "FM Fr", buffer, bufferLen, CH2.FM_mod_fr))
-    	 timber.print("%sCH2.FM Fr   =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer);
-    else {  timber.print("%sError [CH2] key 'FM Fr'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
-
-    if (ini.getValue("CH2", "FM Mod", buffer, bufferLen, &CH2.FM_mod[0], 20))
-    	 timber.print("%sCH2.FM Mod  =  %s\r\n", RTT_CTRL_TEXT_BRIGHT_GREEN , buffer );
-    else {  timber.print("%sError [CH2] key 'FM Mod'\r\n", RTT_CTRL_TEXT_BRIGHT_RED); ini.printErrorMessage(); }
 
     ini.close();
 
