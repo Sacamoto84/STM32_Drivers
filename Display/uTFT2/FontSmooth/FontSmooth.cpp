@@ -227,8 +227,10 @@ bool Font_Smooth_getUnicodeIndex(uint16_t unicode, uint16_t *index) {
 
     if (unicode == 0xD081) {        //Ё (UTF-8 пара D0 81)
         unicode = 0x401;
-    } else if (unicode == 0xD181) { //ё (UTF-8 пара D1 81)
+    } else if (unicode == 0xD191) { //ё (UTF-8 пара D1 91)
         unicode = 0x451;
+    } else if (unicode == 0xD181) { //с (UTF-8 пара D1 81) -> английская 'c'
+        unicode = 'c';
     } else {
 		if (unicode == 0xA8) unicode = 0x401; //Ё (cp1251)
 		else if (unicode == 0xB8) unicode = 0x451; //ё (cp1251)
@@ -239,6 +241,10 @@ bool Font_Smooth_getUnicodeIndex(uint16_t unicode, uint16_t *index) {
 
 		if (unicode > 0x44F) unicode -= 0xC0; //Глюк Эклипса
     }
+
+	if (unicode == 0x0441) { //русская малая 'с' -> английская 'c'
+		unicode = 'c';
+	}
 
 	if (gUnicode == NULL || gFont.gCount == 0) return false;
 
