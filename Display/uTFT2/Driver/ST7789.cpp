@@ -799,6 +799,117 @@ void TFT_Driver::ST7789_UpdateDMA16bitV3(void) {
 #endif
 }
 
+void TFT_Driver::ST7789_UpdateDMA16bit_Lines(uint16_t y0, uint16_t y1) {
+
+	if (blockUpdate) return;
+	if (LCD == NULL || LCD->buffer16 == NULL) return;
+	if (y0 >= LCD->TFT_HEIGHT) return;
+	if (y1 >= LCD->TFT_HEIGHT) y1 = LCD->TFT_HEIGHT - 1;
+	if (y0 > y1) return;
+
+#if defined(TFT_PLATFORM_PICO)
+	LCD_CS_0;
+
+	SPI.SendCmd(0x2A);
+	SPI.SendData(LCD->dx >> 8);
+	SPI.SendData(LCD->dx & 0xFF);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
+	SPI.SendCmd(0x2B);
+	SPI.SendData((LCD->dy + y0) >> 8);
+	SPI.SendData((LCD->dy + y0) & 0xFF);
+	SPI.SendData((LCD->dy + y1) >> 8);
+	SPI.SendData((LCD->dy + y1) & 0xFF);
+	SPI.SendCmd(0x2C); //Memory write
+
+	SPI.Spi8to16();
+	DATA;
+
+	if (dma_channel < 0) {
+		dma_channel = dma_claim_unused_channel(true);
+	}
+
+	dma_channel_config c = dma_channel_get_default_config(dma_channel);
+	channel_config_set_transfer_data_size(&c, DMA_SIZE_16);
+	channel_config_set_dreq(&c, spi_get_dreq(LCD->spi, true));
+	channel_config_set_read_increment(&c, true);
+	channel_config_set_write_increment(&c, false);
+
+	dma_channel_configure(
+		dma_channel,
+		&c,
+		&spi_get_hw(LCD->spi)->dr,
+		&LCD->buffer16[(uint32_t)y0 * LCD->TFT_WIDTH],
+		(uint32_t)LCD->TFT_WIDTH * (y1 - y0 + 1),
+		true
+	);
+
+	dma_channel_wait_for_finish_blocking(dma_channel);
+
+	while (spi_get_hw(LCD->spi)->sr & SPI_SSPSR_BSY_BITS);
+	while (spi_is_readable(LCD->spi)) { (void)spi_get_hw(LCD->spi)->dr; }
+
+	SPI.Spi16to8(); //8bit mode
+	LCD_CS_1;
+#else
+	if (LCD->GPIO_CS != NULL) {
+		CS_0;
+	}
+
+	SPI.SendCmd(0x2A);
+	SPI.SendData(LCD->dx >> 8);
+	SPI.SendData(LCD->dx & 0xFF);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) >> 8);
+	SPI.SendData((LCD->dx + LCD->TFT_WIDTH - 1) & 0xFF);
+	SPI.SendCmd(0x2B);
+	SPI.SendData((LCD->dy + y0) >> 8);
+	SPI.SendData((LCD->dy + y0) & 0xFF);
+	SPI.SendData((LCD->dy + y1) >> 8);
+	SPI.SendData((LCD->dy + y1) & 0xFF);
+	SPI.SendCmd(0x2C); //Memory write
+
+	SPI.Spi8to16();
+
+	DATA;
+
+	uint32_t total = (uint32_t)LCD->TFT_WIDTH * (y1 - y0 + 1);
+	uint16_t *p = &LCD->buffer16[(uint32_t)y0 * LCD->TFT_WIDTH];
+
+	while (total > 0) {
+		uint32_t chunk = (total > 65535u) ? 65535u : total;
+
+		DMA_TX_Complete = 0;
+		HAL_StatusTypeDef st = HAL_SPI_Transmit_DMA(LCD->hspi, (uint8_t*)p, (uint16_t)chunk);
+		if (st != HAL_OK) break;
+
+		uint32_t wait_start = HAL_GetTick();
+		while (DMA_TX_Complete == 0) {
+			if (HAL_GetTick() - wait_start > 500) {
+				DMA_TX_Complete = 1;
+				break;
+			}
+			__NOP();
+		}
+
+		p += chunk;
+		total -= chunk;
+	}
+
+	uint32_t wait_start = HAL_GetTick();
+	while (!(LCD->hspi->Instance->SR & SPI_SR_TXE)) {
+		if (HAL_GetTick() - wait_start > 50) break;
+	}
+	while (LCD->hspi->Instance->SR & SPI_SR_BSY) {
+		if (HAL_GetTick() - wait_start > 50) break;
+	}
+
+	SPI.Spi16to8(); //8bit mode
+	if (LCD->GPIO_CS != NULL) {
+		CS_1;
+	}
+#endif
+}
+
 void TFT_Driver::ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes)
 {
 	if (LCD == NULL || data == NULL || nbytes <= 0) return;

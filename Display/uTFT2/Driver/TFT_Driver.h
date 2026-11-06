@@ -176,6 +176,7 @@ public:
 	void ST7789_UpdateDMA16bitV2(void);
 	//DMA с блокировкой
 	void ST7789_UpdateDMA16bitV3(void);
+	void ST7789_UpdateDMA16bit_Lines(uint16_t y0, uint16_t y1);
 	void ST7789_Transmit_Array(char dc, uint8_t *data, int nbytes);
 	void ST7789_Update_DMA_Cicle_On(void);
 	void ST7789_Update_DMA_Cicle_Off(void);
