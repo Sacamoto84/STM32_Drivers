@@ -86,7 +86,7 @@ void TFT_Driver::ST7789_Init(void) {
 
 	// 10. Частота кадров (60 Hz)
 	SPI.SendCmd(0xC6);   // FRCTRL2
-	SPI.SendData(0x0F);
+	SPI.SendData(ST7789_FRCTRL2_VAL);
 
 	// 11. Управление питанием (Power Control 1)
 	SPI.SendCmd(0xD0);   // PWCTRL1

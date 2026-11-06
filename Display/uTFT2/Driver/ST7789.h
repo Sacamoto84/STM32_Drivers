@@ -117,6 +117,53 @@
 #define ST77XX_MADCTL_ML      0x10
 #define ST77XX_MADCTL_RGB     0x00
 
+// ============================================================================
+// ST7789 FRAME RATE CONTROL (FRCTRL2 0xC6) DEFINITIONS
+// ============================================================================
+#define ST7789_FRCTRL2_119HZ  0x00 // ~120 Hz (Maximum refresh rate)
+#define ST7789_FRCTRL2_114HZ  0x01
+#define ST7789_FRCTRL2_106HZ  0x02
+#define ST7789_FRCTRL2_100HZ  0x03 // 100 Hz
+#define ST7789_FRCTRL2_94HZ   0x04
+#define ST7789_FRCTRL2_89HZ   0x05 // ~90 Hz
+#define ST7789_FRCTRL2_85HZ   0x06
+#define ST7789_FRCTRL2_81HZ   0x07 // ~80 Hz
+#define ST7789_FRCTRL2_77HZ   0x08
+#define ST7789_FRCTRL2_74HZ   0x09 // ~75 Hz
+#define ST7789_FRCTRL2_71HZ   0x0A
+#define ST7789_FRCTRL2_69HZ   0x0B
+#define ST7789_FRCTRL2_66HZ   0x0C
+#define ST7789_FRCTRL2_64HZ   0x0D
+#define ST7789_FRCTRL2_62HZ   0x0E
+#define ST7789_FRCTRL2_60HZ   0x0F // Standard default (60 Hz)
+#define ST7789_FRCTRL2_50HZ   0x15
+#define ST7789_FRCTRL2_39HZ   0x1F
+
+// Translate human-readable ST7789_FRAMERATE (e.g. 120, 100, 60) to register value
+#if defined(ST7789_FRAMERATE)
+  #if (ST7789_FRAMERATE == 120 || ST7789_FRAMERATE == 119)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_119HZ
+  #elif (ST7789_FRAMERATE == 100)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_100HZ
+  #elif (ST7789_FRAMERATE == 90 || ST7789_FRAMERATE == 89)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_89HZ
+  #elif (ST7789_FRAMERATE == 80 || ST7789_FRAMERATE == 81)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_81HZ
+  #elif (ST7789_FRAMERATE == 75 || ST7789_FRAMERATE == 74)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_74HZ
+  #elif (ST7789_FRAMERATE == 60)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_60HZ
+  #elif (ST7789_FRAMERATE == 50)
+    #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_50HZ
+  #else
+    #define ST7789_FRCTRL2_VAL (ST7789_FRAMERATE)
+  #endif
+#elif defined(ST7789_FRCTRL2_CONFIG)
+  #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_CONFIG
+#else
+  #define ST7789_FRCTRL2_VAL ST7789_FRCTRL2_60HZ // Default backward-compatible 60 Hz
+#endif
+
 #endif /* TFT_Driver_ST7789 */
 
 #endif /* _U8G_H */
